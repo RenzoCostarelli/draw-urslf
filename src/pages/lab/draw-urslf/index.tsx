@@ -127,18 +127,25 @@ export default function DrawUrslf() {
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
 
-    const inputExt = mimeType.startsWith('video/mp4') ? 'input.mp4' : 'input.webm'
+    const nativeMP4 = mimeType.startsWith('video/mp4')
 
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: mimeType })
 
+      // Native MP4 (Chrome/Edge): the browser already applied the 500 kbps limit,
+      // ffmpeg-wasm can't decode avc1 so we download directly.
+      if (nativeMP4) {
+        downloadBlob(blob, `draw-${Date.now()}.mp4`)
+        return
+      }
+
       setIsTranscoding(true)
       try {
         const ffmpeg = await loadFFmpeg()
-        await ffmpeg.writeFile(inputExt, await fetchFile(blob))
+        await ffmpeg.writeFile('input.webm', await fetchFile(blob))
 
         const exitCode = await ffmpeg.exec([
-          '-i', inputExt,
+          '-i', 'input.webm',
           '-an',
           '-vf', 'scale=if(gt(iw,1280),1280,iw):-2',
           '-c:v', 'libx264',
@@ -154,7 +161,7 @@ export default function DrawUrslf() {
         if (exitCode !== 0) throw new Error(`ffmpeg error (code ${exitCode})`)
 
         const data = await ffmpeg.readFile('output.mp4') as Uint8Array
-        await ffmpeg.deleteFile(inputExt)
+        await ffmpeg.deleteFile('input.webm')
         await ffmpeg.deleteFile('output.mp4')
 
         downloadBlob(new Blob([data.slice()], { type: 'video/mp4' }), `draw-${Date.now()}.mp4`)
