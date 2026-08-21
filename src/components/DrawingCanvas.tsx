@@ -416,7 +416,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
 
               let activePinch = false;
               if (!ps.isPinchActive) {
-                if (dist < PINCH_START) {
+                // Solo iniciar si ninguna otra mano está dibujando actualmente
+                const otherHandDrawing = [...handPinchState.entries()].some(
+                  ([label, state]) => label !== handLabel && state.isPinchActive,
+                );
+                if (dist < PINCH_START && !otherHandDrawing) {
                   ps.isPinchActive = true;
                   ps.lostFrames = 0;
                 }
