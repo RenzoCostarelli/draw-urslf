@@ -27,6 +27,7 @@ export default function DrawUrslf() {
   const [brushSize, setBrushSize] = useState<BrushSize>('medium')
   const [color, setColor] = useState<DrawColor>('red')
   const [tool, setTool] = useState<DrawTool>('brush')
+  const [isLocked, setIsLocked] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscoding, setIsTranscoding] = useState(false)
   const [recordingSeconds, setRecordingSeconds] = useState(0)
@@ -202,7 +203,7 @@ export default function DrawUrslf() {
         </Canvas>
       </div>
 
-      <DrawingCanvas ref={drawingRef} brushSize={brushSize} color={color} tool={tool} videoRef={videoRef} />
+      <DrawingCanvas ref={drawingRef} brushSize={brushSize} color={color} tool={tool} videoRef={videoRef} isLocked={isLocked} />
 
       <Toolbar
         brushSize={brushSize}
@@ -215,9 +216,11 @@ export default function DrawUrslf() {
         onBrushSizeChange={setBrushSize}
         onColorChange={setColor}
         onToolChange={setTool}
+        isLocked={isLocked}
         onClear={() => drawingRef.current?.clear()}
         onCapture={handleCapture}
         onRecordToggle={handleRecordToggle}
+        onLockToggle={() => setIsLocked((l) => !l)}
       />
     </div>
   )

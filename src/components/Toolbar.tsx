@@ -1,36 +1,38 @@
-import { useState } from 'react'
-import { COLORS } from '../constants/drawing'
-import type { BrushSize, DrawColor, DrawTool } from '../constants/drawing'
+import { useState } from "react";
+import { COLORS } from "../constants/drawing";
+import type { BrushSize, DrawColor, DrawTool } from "../constants/drawing";
 
 interface ToolbarProps {
-  brushSize: BrushSize
-  color: DrawColor
-  tool: DrawTool
-  isRecording: boolean
-  isTranscoding: boolean
-  recordingSeconds: number
-  maxRecordingSeconds: number
-  onBrushSizeChange: (size: BrushSize) => void
-  onColorChange: (color: DrawColor) => void
-  onToolChange: (tool: DrawTool) => void
-  onClear: () => void
-  onCapture: () => void
-  onRecordToggle: () => void
+  brushSize: BrushSize;
+  color: DrawColor;
+  tool: DrawTool;
+  isRecording: boolean;
+  isTranscoding: boolean;
+  recordingSeconds: number;
+  maxRecordingSeconds: number;
+  onBrushSizeChange: (size: BrushSize) => void;
+  onColorChange: (color: DrawColor) => void;
+  onToolChange: (tool: DrawTool) => void;
+  isLocked: boolean;
+  onClear: () => void;
+  onCapture: () => void;
+  onRecordToggle: () => void;
+  onLockToggle: () => void;
 }
 
-type Panel = 'brush' | 'eraser' | 'colors' | null
+type Panel = "brush" | "eraser" | "colors" | null;
 
 const BRUSH_CIRCLE_SIZES: Record<BrushSize, number> = {
   small: 8,
   medium: 18,
   large: 30,
-}
+};
 
-const COLORS_LIST: DrawColor[] = ['red', 'green', 'yellow', 'violet']
-const SIZES_LIST: BrushSize[] = ['small', 'medium', 'large']
+const COLORS_LIST: DrawColor[] = ["red", "green", "yellow", "violet"];
+const SIZES_LIST: BrushSize[] = ["small", "medium", "large"];
 
 const PANEL_CLASSES =
-  'flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-2xl px-4 py-3 select-none'
+  "flex items-center gap-2 bg-black/60 backdrop-blur-md rounded-2xl px-4 py-3 select-none";
 
 export default function Toolbar({
   brushSize,
@@ -43,71 +45,71 @@ export default function Toolbar({
   onBrushSizeChange,
   onColorChange,
   onToolChange,
+  isLocked,
   onClear,
   onCapture,
   onRecordToggle,
+  onLockToggle,
 }: ToolbarProps) {
-  const [panel, setPanel] = useState<Panel>(null)
+  const [panel, setPanel] = useState<Panel>(null);
 
   const toggle = (p: Exclude<Panel, null>) =>
-    setPanel((prev) => (prev === p ? null : p))
+    setPanel((prev) => (prev === p ? null : p));
 
   const handleBrush = () => {
-    onToolChange('brush')
-    toggle('brush')
-  }
+    onToolChange("brush");
+    toggle("brush");
+  };
 
   const handleEraser = () => {
-    onToolChange('eraser')
-    toggle('eraser')
-  }
+    onToolChange("eraser");
+    toggle("eraser");
+  };
 
   const handleClear = () => {
-    onClear()
-    setPanel(null)
-  }
+    onClear();
+    setPanel(null);
+  };
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
       {/* ── Panel flotante ──────────────────────────────── */}
       {panel && (
         <div className={PANEL_CLASSES}>
-          {panel === 'colors' ? (
-            COLORS_LIST.map((name) => (
-              <button
-                key={name}
-                onClick={() => onColorChange(name)}
-                className={`w-10 h-10 rounded-xl transition-all ${
-                  color === name
-                    ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-black'
-                    : 'hover:scale-105'
-                }`}
-                style={{ backgroundColor: COLORS[name] }}
-              />
-            ))
-          ) : (
-            SIZES_LIST.map((size) => (
-              <button
-                key={size}
-                onClick={() => onBrushSizeChange(size)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                  brushSize === size
-                    ? 'bg-white/30 ring-2 ring-white'
-                    : 'bg-white/10 hover:bg-white/20'
-                }`}
-              >
-                <div
-                  style={{
-                    width: BRUSH_CIRCLE_SIZES[size],
-                    height: BRUSH_CIRCLE_SIZES[size],
-                    backgroundColor: 'white',
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                  }}
+          {panel === "colors"
+            ? COLORS_LIST.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => onColorChange(name)}
+                  className={`w-10 h-10 rounded-xl transition-all ${
+                    color === name
+                      ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-black"
+                      : "hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: COLORS[name] }}
                 />
-              </button>
-            ))
-          )}
+              ))
+            : SIZES_LIST.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => onBrushSizeChange(size)}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                    brushSize === size
+                      ? "bg-white/30 ring-2 ring-white"
+                      : "bg-white/10 hover:bg-white/20"
+                  }`}
+                >
+                  <div
+                    style={{
+                      width: BRUSH_CIRCLE_SIZES[size],
+                      height: BRUSH_CIRCLE_SIZES[size],
+                      backgroundColor: "white",
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                    }}
+                  />
+                </button>
+              ))}
         </div>
       )}
 
@@ -118,7 +120,9 @@ export default function Toolbar({
           onClick={handleBrush}
           title="Pincel"
           className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            tool === 'brush' ? 'bg-white/30 ring-2 ring-white' : 'bg-white/10 hover:bg-white/20'
+            tool === "brush"
+              ? "bg-white/30 ring-2 ring-white"
+              : "bg-white/10 hover:bg-white/20"
           }`}
         >
           <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
@@ -131,7 +135,9 @@ export default function Toolbar({
           onClick={handleEraser}
           title="Goma de borrar"
           className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            tool === 'eraser' ? 'bg-white/30 ring-2 ring-white' : 'bg-white/10 hover:bg-white/20'
+            tool === "eraser"
+              ? "bg-white/30 ring-2 ring-white"
+              : "bg-white/10 hover:bg-white/20"
           }`}
         >
           <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
@@ -141,12 +147,12 @@ export default function Toolbar({
 
         {/* Colores */}
         <button
-          onClick={() => toggle('colors')}
+          onClick={() => toggle("colors")}
           title="Colores"
           className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            panel === 'colors' ? 'ring-2 ring-white' : 'hover:brightness-110'
+            panel === "colors" ? "ring-2 ring-white" : "hover:brightness-110"
           }`}
-          style={{ backgroundColor: COLORS[color] + 'bb' }}
+          style={{ backgroundColor: COLORS[color] + "bb" }}
         >
           <svg viewBox="0 0 24 24" fill="white" width="20" height="20">
             <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
@@ -168,34 +174,62 @@ export default function Toolbar({
         <button
           onClick={onRecordToggle}
           disabled={isTranscoding}
-          title={isTranscoding ? 'Convirtiendo a MP4…' : isRecording ? 'Detener grabación' : 'Grabar video'}
+          title={
+            isTranscoding
+              ? "Convirtiendo a MP4…"
+              : isRecording
+                ? "Detener grabación"
+                : "Grabar video"
+          }
           className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
             isTranscoding
-              ? 'bg-yellow-500/50 ring-2 ring-yellow-400 cursor-not-allowed'
+              ? "bg-yellow-500/50 ring-2 ring-yellow-400 cursor-not-allowed"
               : isRecording
-              ? 'bg-red-500/70 ring-2 ring-red-400'
-              : 'bg-white/10 hover:bg-white/20'
+                ? "bg-red-500/70 ring-2 ring-red-400"
+                : "bg-white/10 hover:bg-white/20"
           }`}
         >
           {isTranscoding ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" width="22" height="22" className="animate-spin">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="2.5"
+              width="22"
+              height="22"
+              className="animate-spin"
+            >
               <path d="M12 3a9 9 0 1 0 9 9" strokeLinecap="round" />
             </svg>
           ) : isRecording ? (
             <>
               {/* Countdown arc */}
-              <svg viewBox="0 0 44 44" width="44" height="44" className="absolute inset-0">
+              <svg
+                viewBox="0 0 44 44"
+                width="44"
+                height="44"
+                className="absolute inset-0"
+              >
                 <circle
-                  cx="22" cy="22" r="20"
-                  fill="none" stroke="white" strokeWidth="3" strokeOpacity="0.3"
+                  cx="22"
+                  cy="22"
+                  r="20"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeOpacity="0.3"
                 />
                 <circle
-                  cx="22" cy="22" r="20"
-                  fill="none" stroke="white" strokeWidth="3"
+                  cx="22"
+                  cy="22"
+                  r="20"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
                   strokeDasharray={`${125.7 * (1 - recordingSeconds / maxRecordingSeconds)} 125.7`}
                   strokeLinecap="round"
                   transform="rotate(-90 22 22)"
-                  style={{ transition: 'stroke-dasharray 0.9s linear' }}
+                  style={{ transition: "stroke-dasharray 0.9s linear" }}
                 />
               </svg>
               <span className="text-white text-xs font-bold z-10">
@@ -205,7 +239,37 @@ export default function Toolbar({
           ) : (
             <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
               <circle cx="12" cy="12" r="5" fill="#ef4444" />
-              <circle cx="12" cy="12" r="9" fill="none" stroke="white" strokeWidth="1.5" />
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+                fill="none"
+                stroke="white"
+                strokeWidth="1.5"
+              />
+            </svg>
+          )}
+        </button>
+
+        {/* Candado */}
+        <button
+          onClick={onLockToggle}
+          title={isLocked ? "Desbloquear capa" : "Bloquear y rotar con la cara"}
+          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+            isLocked
+              ? "bg-yellow-400/30 ring-2 ring-yellow-300"
+              : "bg-white/10 hover:bg-white/20"
+          }`}
+        >
+          {isLocked ? (
+            /* Candado cerrado */
+            <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
+              <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6A3.1 3.1 0 0 1 12 2.9 3.1 3.1 0 0 1 15.1 6v2z" />
+            </svg>
+          ) : (
+            /* Candado abierto */
+            <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
+              <path d="M18 8h-1V6A5 5 0 0 0 7 6h2a3 3 0 0 1 6 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
             </svg>
           )}
         </button>
@@ -216,14 +280,19 @@ export default function Toolbar({
           title="Borrar todo"
           className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/10 hover:bg-red-500/40 transition-all"
         >
-          <svg viewBox="0 0 32 32" fill="white" width="26" height="26">
-            <circle cx="13" cy="19" r="9" />
-            <path d="M20 12 Q24 8 27 5" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <circle cx="27" cy="5" r="2.2" fill="#facc15" />
-            <circle cx="10" cy="16" r="2.5" fill="rgba(255,255,255,0.25)" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+          >
+            <path
+              fill="white"
+              d="M11.25 6a3.25 3.25 0 0 1 3.25-3.25A3.25 3.25 0 0 1 17.75 6c0 .42.33.75.75.75s.75-.33.75-.75v-.75h1.5V6a2.25 2.25 0 0 1-2.25 2.25A2.25 2.25 0 0 1 16.25 6a1.75 1.75 0 0 0-1.75-1.75A1.75 1.75 0 0 0 12.75 6H14v1.29c2.89.86 5 3.54 5 6.71a7 7 0 0 1-7 7a7 7 0 0 1-7-7c0-3.17 2.11-5.85 5-6.71V6zM22 6h2v1h-2zm-3-2V2h1v2zm1.91.38l1.42-1.42l.71.71l-1.42 1.42z"
+            />
           </svg>
         </button>
       </div>
     </div>
-  )
+  );
 }
