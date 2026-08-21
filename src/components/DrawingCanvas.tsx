@@ -19,9 +19,9 @@ const PINCH_START = 0.035;
 const PINCH_STOP = 0.1;
 const PINCH_LOST_TOLERANCE = 3;
 
-const FIST_FRAMES_THRESHOLD = 20; // ~333 ms a 60 fps
-const FIST_FINGER_TIPS = [8, 12, 16, 20];
-const FIST_FINGER_MCPS = [5, 9, 13, 17];
+// const FIST_FRAMES_THRESHOLD = 20; // ~333 ms a 60 fps
+// const FIST_FINGER_TIPS = [8, 12, 16, 20];
+// const FIST_FINGER_MCPS = [5, 9, 13, 17];
 
 export interface DrawingCanvasHandle {
   clear: () => void;
@@ -56,7 +56,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
     const toolRef = useRef(tool);
     const isLockedRef = useRef(isLocked);
     // Posición + ángulo de la nariz en el momento exacto de bloquear
-    const lockStateRef = useRef<{ x: number; y: number; angle: number } | null>(null);
+    const lockStateRef = useRef<{ x: number; y: number; angle: number } | null>(
+      null,
+    );
     useEffect(() => {
       brushSizeRef.current = brushSize;
     }, [brushSize]);
@@ -399,7 +401,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
                 });
               }
               const ps = handPinchState.get(handLabel)!;
-              const fs = handFistState.get(handLabel)!;
+              // const fs = handFistState.get(handLabel)!;
 
               // Pinch detection
               const thumb = lm[4],
@@ -473,49 +475,49 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
               }
 
               // Fist detection (any hand → clear canvas)
-              const isFist = FIST_FINGER_TIPS.every(
-                (tip, i) => lm[tip].y > lm[FIST_FINGER_MCPS[i]].y,
-              );
+              // const isFist = FIST_FINGER_TIPS.every(
+              //   (tip, i) => lm[tip].y > lm[FIST_FINGER_MCPS[i]].y,
+              // );
 
-              if (isFist) {
-                fs.fistFrames = Math.min(
-                  fs.fistFrames + 1,
-                  FIST_FRAMES_THRESHOLD,
-                );
-                if (fs.fistFrames >= FIST_FRAMES_THRESHOLD && !fs.fistCleared) {
-                  clearCanvas();
-                  fs.fistCleared = true;
-                  clearFlashFrames = 40;
-                }
-              } else {
-                fs.fistFrames = Math.max(fs.fistFrames - 2, 0);
-                if (fs.fistFrames === 0) fs.fistCleared = false;
-              }
+              // if (isFist) {
+              //   fs.fistFrames = Math.min(
+              //     fs.fistFrames + 1,
+              //     FIST_FRAMES_THRESHOLD,
+              //   );
+              //   if (fs.fistFrames >= FIST_FRAMES_THRESHOLD && !fs.fistCleared) {
+              //     clearCanvas();
+              //     fs.fistCleared = true;
+              //     clearFlashFrames = 40;
+              //   }
+              // } else {
+              //   fs.fistFrames = Math.max(fs.fistFrames - 2, 0);
+              //   if (fs.fistFrames === 0) fs.fistCleared = false;
+              // }
 
               // Fist progress ring around palm
-              if (fs.fistFrames > 0) {
-                const palmLm = lm[9];
-                const px = (1 - palmLm.x) * w;
-                const py = palmLm.y * h;
-                const progress = fs.fistFrames / FIST_FRAMES_THRESHOLD;
-                lmCtx.fillStyle = `rgba(255,60,60,${0.15 + progress * 0.25})`;
-                lmCtx.beginPath();
-                lmCtx.arc(px, py, 44, 0, Math.PI * 2);
-                lmCtx.fill();
-                lmCtx.strokeStyle = fs.fistCleared
-                  ? "#ff2222"
-                  : "rgba(255,80,80,0.95)";
-                lmCtx.lineWidth = 4;
-                lmCtx.beginPath();
-                lmCtx.arc(
-                  px,
-                  py,
-                  44,
-                  -Math.PI / 2,
-                  -Math.PI / 2 + progress * Math.PI * 2,
-                );
-                lmCtx.stroke();
-              }
+              // if (fs.fistFrames > 0) {
+              //   const palmLm = lm[9];
+              //   const px = (1 - palmLm.x) * w;
+              //   const py = palmLm.y * h;
+              //   const progress = fs.fistFrames / FIST_FRAMES_THRESHOLD;
+              //   lmCtx.fillStyle = `rgba(255,60,60,${0.15 + progress * 0.25})`;
+              //   lmCtx.beginPath();
+              //   lmCtx.arc(px, py, 44, 0, Math.PI * 2);
+              //   lmCtx.fill();
+              //   lmCtx.strokeStyle = fs.fistCleared
+              //     ? "#ff2222"
+              //     : "rgba(255,80,80,0.95)";
+              //   lmCtx.lineWidth = 4;
+              //   lmCtx.beginPath();
+              //   lmCtx.arc(
+              //     px,
+              //     py,
+              //     44,
+              //     -Math.PI / 2,
+              //     -Math.PI / 2 + progress * Math.PI * 2,
+              //   );
+              //   lmCtx.stroke();
+              // }
             }
 
             // Decay state for hands no longer detected this frame
@@ -547,8 +549,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
                 const fl = faceResults.faceLandmarks[0];
                 // Rotación del canvas de dibujo en eje Z cuando está bloqueado
                 if (isLockedRef.current) {
-                  const nose = fl[4], forehead = fl[9];
-                  const dx = (1 - forehead.x) - (1 - nose.x);
+                  const nose = fl[4],
+                    forehead = fl[9];
+                  const dx = 1 - forehead.x - (1 - nose.x);
                   const dy = forehead.y - nose.y;
                   const angle = Math.atan2(dx, -dy) * (180 / Math.PI);
                   const nx = (1 - nose.x) * w;
@@ -564,8 +567,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
                   // translate(narizActual) · rotate(Δ) · translate(-narizInicial)
                   // → el punto de ancla original sigue a la nariz en pantalla
                   drawCanvas.style.transformOrigin = "0 0";
-                  drawCanvas.style.transform =
-                    `translate(${nx}px,${ny}px) rotate(${delta}deg) translate(${-nx0}px,${-ny0}px)`;
+                  drawCanvas.style.transform = `translate(${nx}px,${ny}px) rotate(${delta}deg) translate(${-nx0}px,${-ny0}px)`;
                 }
               }
             }

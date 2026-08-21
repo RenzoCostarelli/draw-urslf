@@ -15,7 +15,7 @@ interface ToolbarProps {
   onToolChange: (tool: DrawTool) => void;
   isLocked: boolean;
   onClear: () => void;
-  onCapture: () => void;
+  // onCapture: () => void;
   onRecordToggle: () => void;
   onLockToggle: () => void;
 }
@@ -47,7 +47,6 @@ export default function Toolbar({
   onToolChange,
   isLocked,
   onClear,
-  onCapture,
   onRecordToggle,
   onLockToggle,
 }: ToolbarProps) {
@@ -160,7 +159,7 @@ export default function Toolbar({
         </button>
 
         {/* Captura foto */}
-        <button
+        {/* <button
           onClick={onCapture}
           title="Tomar foto"
           className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all"
@@ -168,7 +167,7 @@ export default function Toolbar({
           <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
             <path d="M12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4zm0-8.4A5.2 5.2 0 1 0 12 17.2 5.2 5.2 0 0 0 12 6.8zM9 3l-1.83 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9z" />
           </svg>
-        </button>
+        </button> */}
 
         {/* Grabar video */}
         <button
