@@ -59,8 +59,13 @@ export default function DrawUrslf() {
     const cssW = threeCanvas.offsetWidth
     const cssH = threeCanvas.offsetHeight
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    const outW = cssW * dpr
-    const outH = cssH * dpr
+    const rawW = cssW * dpr
+    const rawH = cssH * dpr
+    // Cap at 1280px wide to keep JPEG under ~200 kb
+    const maxW = 1280
+    const scale = rawW > maxW ? maxW / rawW : 1
+    const outW = Math.round(rawW * scale)
+    const outH = Math.round(rawH * scale)
 
     const offscreen = document.createElement('canvas')
     offscreen.width = outW
@@ -69,11 +74,10 @@ export default function DrawUrslf() {
     ctx.drawImage(threeCanvas, 0, 0, outW, outH)
     ctx.drawImage(drawCanvas, 0, 0, outW, outH)
 
-    // toBlob → blob URL (works in all browsers; data: URLs are blocked in Chrome)
     offscreen.toBlob((blob) => {
       if (!blob) { console.error('[capture] toBlob returned null'); return }
-      downloadBlob(blob, `draw-${Date.now()}.png`)
-    }, 'image/png')
+      downloadBlob(blob, `draw-${Date.now()}.jpg`)
+    }, 'image/jpeg', 0.82)
   }, [])
 
   const handleRecordToggle = useCallback(() => {
@@ -118,33 +122,30 @@ export default function DrawUrslf() {
       : MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm'
-    const recorder = new MediaRecorder(stream, { mimeType })
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 500_000 })
     const chunks: Blob[] = []
 
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
 
-    const nativeMP4 = mimeType.startsWith('video/mp4')
+    const inputExt = mimeType.startsWith('video/mp4') ? 'input.mp4' : 'input.webm'
 
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: mimeType })
 
-      if (nativeMP4) {
-        downloadBlob(blob, `draw-${Date.now()}.mp4`)
-        return
-      }
-
       setIsTranscoding(true)
       try {
         const ffmpeg = await loadFFmpeg()
-        await ffmpeg.writeFile('input.webm', await fetchFile(blob))
+        await ffmpeg.writeFile(inputExt, await fetchFile(blob))
 
         const exitCode = await ffmpeg.exec([
-          '-i', 'input.webm',
+          '-i', inputExt,
           '-an',
           '-vf', 'scale=if(gt(iw,1280),1280,iw):-2',
           '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-crf', '26',
+          '-preset', 'fast',
+          '-crf', '30',
+          '-maxrate', '800k',
+          '-bufsize', '1600k',
           '-pix_fmt', 'yuv420p',
           '-movflags', '+faststart',
           'output.mp4',
@@ -153,7 +154,7 @@ export default function DrawUrslf() {
         if (exitCode !== 0) throw new Error(`ffmpeg error (code ${exitCode})`)
 
         const data = await ffmpeg.readFile('output.mp4') as Uint8Array
-        await ffmpeg.deleteFile('input.webm')
+        await ffmpeg.deleteFile(inputExt)
         await ffmpeg.deleteFile('output.mp4')
 
         downloadBlob(new Blob([data.slice()], { type: 'video/mp4' }), `draw-${Date.now()}.mp4`)
