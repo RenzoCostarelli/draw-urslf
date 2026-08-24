@@ -3,8 +3,8 @@ import { Canvas } from "@react-three/fiber";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import WebcamPlane from "../../../components/WebcamPlane";
-import DrawingCanvas from "../../../components/DrawingCanvas";
-import type { DrawingCanvasHandle } from "../../../components/DrawingCanvas";
+import DrawingPlane from "../../../components/DrawingPlane";
+import type { DrawingCanvasHandle, MPStatus } from "../../../components/DrawingPlane";
 import Toolbar from "../../../components/Toolbar";
 import { useWebcam } from "../../../hooks/useWebcam";
 import type {
@@ -28,6 +28,17 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+const statusLabel: Record<MPStatus, string> = {
+  loading: "Cargando MediaPipe...",
+  ready: "MediaPipe listo",
+  error: "Error al cargar MediaPipe",
+};
+const statusColor: Record<MPStatus, string> = {
+  loading: "bg-yellow-500/80",
+  ready: "bg-green-500/80",
+  error: "bg-red-500/80",
+};
+
 export default function DrawUrslf() {
   const [brushSize, setBrushSize] = useState<BrushSize>("medium");
   const [color, setColor] = useState<DrawColor>("red");
@@ -36,12 +47,13 @@ export default function DrawUrslf() {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscoding, setIsTranscoding] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [mpStatus, setMpStatus] = useState<MPStatus>("loading");
 
   const videoRef = useWebcam();
   const drawingRef = useRef<DrawingCanvasHandle>(null);
   const threeContainerRef = useRef<HTMLDivElement>(null);
+  const landmarkCanvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const animFrameRef = useRef<number>(0);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ffmpegRef = useRef<FFmpeg | null>(null);
@@ -63,70 +75,23 @@ export default function DrawUrslf() {
     return ffmpeg;
   }, []);
 
-  // const handleCapture = useCallback(() => {
-  //   const threeCanvas = threeContainerRef.current?.querySelector('canvas')
-  //   const drawCanvas = drawingRef.current?.getCanvas()
-  //   if (!threeCanvas || !drawCanvas) return
-
-  //   const cssW = threeCanvas.offsetWidth
-  //   const cssH = threeCanvas.offsetHeight
-  //   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  //   const rawW = cssW * dpr
-  //   const rawH = cssH * dpr
-  //   // Cap at 1280px wide to keep JPEG under ~200 kb
-  //   const maxW = 1280
-  //   const scale = rawW > maxW ? maxW / rawW : 1
-  //   const outW = Math.round(rawW * scale)
-  //   const outH = Math.round(rawH * scale)
-
-  //   const offscreen = document.createElement('canvas')
-  //   offscreen.width = outW
-  //   offscreen.height = outH
-  //   const ctx = offscreen.getContext('2d')!
-  //   ctx.drawImage(threeCanvas, 0, 0, outW, outH)
-  //   ctx.drawImage(drawCanvas, 0, 0, outW, outH)
-
-  //   offscreen.toBlob((blob) => {
-  //     if (!blob) { console.error('[capture] toBlob returned null'); return }
-  //     downloadBlob(blob, `draw-${Date.now()}.jpg`)
-  //   }, 'image/jpeg', 0.82)
-  // }, [])
-
   const handleRecordToggle = useCallback(() => {
     if (isRecording) {
       if (autoStopRef.current) clearTimeout(autoStopRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
       mediaRecorderRef.current?.stop();
-      cancelAnimationFrame(animFrameRef.current);
       setIsRecording(false);
       setRecordingSeconds(0);
       return;
     }
 
-    const threeCanvas = threeContainerRef.current?.querySelector("canvas");
-    const drawCanvas = drawingRef.current?.getCanvas();
-    if (!threeCanvas || !drawCanvas) return;
+    // El canvas WebGL ya contiene webcam + dibujo (todo en Three.js)
+    const threeCanvas = threeContainerRef.current?.querySelector(
+      "canvas",
+    ) as HTMLCanvasElement | null;
+    if (!threeCanvas) return;
 
-    const cssW = threeCanvas.offsetWidth;
-    const cssH = threeCanvas.offsetHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const outW = cssW * dpr;
-    const outH = cssH * dpr;
-
-    const offscreen = document.createElement("canvas");
-    offscreen.width = outW;
-    offscreen.height = outH;
-    const ctx = offscreen.getContext("2d")!;
-
-    const tick = () => {
-      ctx.clearRect(0, 0, outW, outH);
-      ctx.drawImage(threeCanvas, 0, 0, outW, outH);
-      ctx.drawImage(drawCanvas, 0, 0, outW, outH);
-      animFrameRef.current = requestAnimationFrame(tick);
-    };
-    tick();
-
-    const stream = offscreen.captureStream(30);
+    const stream = threeCanvas.captureStream(30);
     const mimeType = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1")
       ? "video/mp4;codecs=avc1"
       : MediaRecorder.isTypeSupported("video/mp4")
@@ -149,8 +114,6 @@ export default function DrawUrslf() {
     recorder.onstop = async () => {
       const blob = new Blob(chunks, { type: mimeType });
 
-      // Native MP4 (Chrome/Edge): the browser already applied the 500 kbps limit,
-      // ffmpeg-wasm can't decode avc1 so we download directly.
       if (nativeMP4) {
         downloadBlob(blob, `draw-${Date.now()}.mp4`);
         return;
@@ -162,25 +125,16 @@ export default function DrawUrslf() {
         await ffmpeg.writeFile("input.webm", await fetchFile(blob));
 
         const exitCode = await ffmpeg.exec([
-          "-i",
-          "input.webm",
+          "-i", "input.webm",
           "-an",
-          "-vf",
-          "scale=if(gt(iw,1280),1280,iw):-2",
-          "-c:v",
-          "libx264",
-          "-preset",
-          "fast",
-          "-crf",
-          "30",
-          "-maxrate",
-          "800k",
-          "-bufsize",
-          "1600k",
-          "-pix_fmt",
-          "yuv420p",
-          "-movflags",
-          "+faststart",
+          "-vf", "scale=if(gt(iw,1280),1280,iw):-2",
+          "-c:v", "libx264",
+          "-preset", "fast",
+          "-crf", "30",
+          "-maxrate", "800k",
+          "-bufsize", "1600k",
+          "-pix_fmt", "yuv420p",
+          "-movflags", "+faststart",
           "output.mp4",
         ]);
 
@@ -213,7 +167,6 @@ export default function DrawUrslf() {
     autoStopRef.current = setTimeout(() => {
       if (countdownRef.current) clearInterval(countdownRef.current);
       mediaRecorderRef.current?.stop();
-      cancelAnimationFrame(animFrameRef.current);
       setIsRecording(false);
       setRecordingSeconds(0);
     }, MAX_REC_SECS * 1000);
@@ -221,6 +174,7 @@ export default function DrawUrslf() {
 
   return (
     <div className="relative w-full h-full bg-neutral-900">
+      {/* Three.js: webcam de fondo + plano de dibujo */}
       <div ref={threeContainerRef} className="absolute inset-0">
         <Canvas
           camera={{ position: [0, 0, 6], fov: 60 }}
@@ -228,17 +182,41 @@ export default function DrawUrslf() {
           gl={{ preserveDrawingBuffer: true }}
         >
           <WebcamPlane videoRef={videoRef} />
+          <DrawingPlane
+            ref={drawingRef}
+            brushSize={brushSize}
+            color={color}
+            tool={tool}
+            videoRef={videoRef}
+            isLocked={isLocked}
+            landmarkCanvasRef={landmarkCanvasRef}
+            onMpStatusChange={setMpStatus}
+          />
         </Canvas>
       </div>
 
-      <DrawingCanvas
-        ref={drawingRef}
-        brushSize={brushSize}
-        color={color}
-        tool={tool}
-        videoRef={videoRef}
-        isLocked={isLocked}
+      {/* Overlay DOM: canvas de landmarks de manos/cara */}
+      <canvas
+        ref={landmarkCanvasRef}
+        className="absolute inset-0 w-full h-full pointer-events-none"
       />
+
+      {/* Badge de estado MediaPipe */}
+      {videoRef && (
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm font-medium select-none ${statusColor[mpStatus]}`}
+          >
+            {mpStatus === "loading" && (
+              <span className="w-3 h-3 rounded-full bg-white/80 animate-pulse inline-block" />
+            )}
+            {mpStatus === "ready" && (
+              <span className="w-3 h-3 rounded-full bg-white inline-block" />
+            )}
+            <span className="hidden">{statusLabel[mpStatus]}</span>
+          </div>
+        </div>
+      )}
 
       <Toolbar
         brushSize={brushSize}

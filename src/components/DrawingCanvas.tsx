@@ -57,9 +57,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
     const toolRef = useRef(tool);
     const isLockedRef = useRef(isLocked);
     // Posición + ángulo de la nariz en el momento exacto de bloquear
-    const lockStateRef = useRef<{ x: number; y: number; angle: number } | null>(
-      null,
-    );
+    const lockStateRef = useRef<{
+      x: number;
+      y: number;
+      angle: number;
+      yaw: number;
+      pitch: number;
+    } | null>(null);
     useEffect(() => {
       brushSizeRef.current = brushSize;
     }, [brushSize]);
@@ -568,27 +572,65 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
               );
               if (faceResults.faceLandmarks.length > 0) {
                 const fl = faceResults.faceLandmarks[0];
-                // Rotación del canvas de dibujo en eje Z cuando está bloqueado
+                // Rotación del canvas en los 3 ejes cuando está bloqueado
                 if (isLockedRef.current) {
                   const nose = fl[4],
-                    forehead = fl[9];
+                    forehead = fl[9],
+                    chin = fl[152],
+                    leftCheek = fl[234],
+                    rightCheek = fl[454];
+
+                  // Roll (eje Z): ángulo entre nariz y frente en pantalla
                   const dx = 1 - forehead.x - (1 - nose.x);
                   const dy = forehead.y - nose.y;
                   const angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+
                   const nx = (1 - nose.x) * w;
                   const ny = nose.y * h;
 
-                  // Primer frame bloqueado: guardar referencia
-                  if (!lockStateRef.current) {
-                    lockStateRef.current = { x: nx, y: ny, angle };
-                  }
-                  const { x: nx0, y: ny0, angle: a0 } = lockStateRef.current;
-                  const delta = angle - a0;
+                  // Yaw (eje Y): diferencia de profundidad Z entre mejillas
+                  // fl[234] = mejilla izq. persona, fl[454] = mejilla der. persona
+                  const cheekSpanX = Math.abs(
+                    (1 - leftCheek.x) - (1 - rightCheek.x),
+                  );
+                  const yaw =
+                    Math.atan2(
+                      leftCheek.z - rightCheek.z,
+                      cheekSpanX + 0.001,
+                    ) *
+                    (180 / Math.PI);
 
-                  // translate(narizActual) · rotate(Δ) · translate(-narizInicial)
-                  // → el punto de ancla original sigue a la nariz en pantalla
+                  // Pitch (eje X): diferencia de profundidad Z entre nariz y barbilla
+                  const noseToChinkY = Math.abs(chin.y - nose.y);
+                  const pitch =
+                    Math.atan2(nose.z - chin.z, noseToChinkY + 0.001) *
+                    (180 / Math.PI);
+
+                  // Primer frame bloqueado: guardar referencia de los 3 ejes
+                  if (!lockStateRef.current) {
+                    lockStateRef.current = { x: nx, y: ny, angle, yaw, pitch };
+                  }
+                  const {
+                    x: nx0,
+                    y: ny0,
+                    angle: a0,
+                    yaw: y0,
+                    pitch: p0,
+                  } = lockStateRef.current;
+
+                  const deltaRoll = angle - a0;
+                  const deltaYaw = yaw - y0;
+                  const deltaPitch = pitch - p0;
+
+                  // perspective · translate(narizActual) · rotateZ · rotateY · rotateX · translate(-narizInicial)
                   drawCanvas.style.transformOrigin = "0 0";
-                  drawCanvas.style.transform = `translate(${nx}px,${ny}px) rotate(${delta}deg) translate(${-nx0}px,${-ny0}px)`;
+                  drawCanvas.style.transform =
+                    `perspective(800px) ` +
+                    `translate(${nx}px,${ny}px) ` +
+                    `rotateZ(${deltaRoll}deg) ` +
+                    `rotateY(${deltaYaw}deg) ` +
+                    `rotateX(${deltaPitch}deg) ` +
+                    `translate(${-nx0}px,${-ny0}px)`;
                 }
               }
             }
