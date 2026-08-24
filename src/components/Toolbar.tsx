@@ -260,17 +260,9 @@ export default function Toolbar({
               : "bg-white/10 hover:bg-white/20"
           }`}
         >
-          {isLocked ? (
-            /* Candado cerrado */
-            <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
-              <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6A3.1 3.1 0 0 1 12 2.9 3.1 3.1 0 0 1 15.1 6v2z" />
-            </svg>
-          ) : (
-            /* Candado abierto */
-            <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
-              <path d="M18 8h-1V6A5 5 0 0 0 7 6h2a3 3 0 0 1 6 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
-            </svg>
-          )}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
+            <path fill="white" d="M14.825 15.825Q16 14.65 16 13H8q0 1.65 1.175 2.825T12 17t2.825-1.175M12 22q-1.875 0-3.512-.712t-2.85-1.925t-1.925-2.85T3 13V2h18v11q0 1.875-.712 3.513t-1.925 2.85t-2.85 1.925T12 22M7 9h4q0-.825-.587-1.412T9 7t-1.412.588T7 9m6 0h4q0-.825-.587-1.412T15 7t-1.412.588T13 9"/>
+          </svg>
         </button>
 
         {/* Bomba */}

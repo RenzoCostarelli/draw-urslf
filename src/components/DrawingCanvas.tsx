@@ -16,8 +16,8 @@ import { BRUSH_SIZES, COLORS } from "../constants/drawing";
 import type { BrushSize, DrawColor, DrawTool } from "../constants/drawing";
 
 const PINCH_START = 0.035;
-const PINCH_STOP = 0.1;
-const PINCH_LOST_TOLERANCE = 3;
+const PINCH_STOP = 0.04;
+const PINCH_LOST_TOLERANCE = 1;
 
 // const FIST_FRAMES_THRESHOLD = 20; // ~333 ms a 60 fps
 // const FIST_FINGER_TIPS = [8, 12, 16, 20];
@@ -48,6 +48,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const landmarkCanvasRef = useRef<HTMLCanvasElement>(null);
     const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const pinchDbgRef = useRef<HTMLDivElement>(null);
 
     const [mpStatus, setMpStatus] = useState<MPStatus>("loading");
 
@@ -382,6 +383,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
               detectedLabels.add(handedness[0].categoryName);
             }
 
+            const pinchDists: { label: string; dist: number }[] = [];
+
             for (let h_i = 0; h_i < results.landmarks.length; h_i++) {
               const lm = results.landmarks[h_i];
               const handLabel = results.handedness[h_i][0].categoryName;
@@ -413,12 +416,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
               const dist = Math.sqrt(
                 (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
               );
+              pinchDists.push({ label: handLabel, dist });
 
               let activePinch = false;
               if (!ps.isPinchActive) {
                 // Solo iniciar si ninguna otra mano está dibujando actualmente
                 const otherHandDrawing = [...handPinchState.entries()].some(
-                  ([label, state]) => label !== handLabel && state.isPinchActive,
+                  ([label, state]) =>
+                    label !== handLabel && state.isPinchActive,
                 );
                 if (dist < PINCH_START && !otherHandDrawing) {
                   ps.isPinchActive = true;
@@ -522,6 +527,18 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
               //   );
               //   lmCtx.stroke();
               // }
+            }
+
+            // ── Pinch debug indicator ────────────────────────────────────────────
+            if (pinchDbgRef.current) {
+              pinchDbgRef.current.textContent =
+                pinchDists.length > 0
+                  ? pinchDists
+                      .map(
+                        ({ label, dist }) => `${label[0]}:${dist.toFixed(3)}`,
+                      )
+                      .join("  ")
+                  : "—";
             }
 
             // Decay state for hands no longer detected this frame
@@ -646,16 +663,24 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
           className="absolute inset-0 w-full h-full pointer-events-none"
         />
         {videoRef && (
-          <div
-            className={`absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm font-medium select-none ${statusColor[mpStatus]}`}
-          >
-            {mpStatus === "loading" && (
-              <span className="w-3 h-3 rounded-full bg-white/80 animate-pulse inline-block" />
-            )}
-            {mpStatus === "ready" && (
-              <span className="w-3 h-3 rounded-full bg-white inline-block" />
-            )}
-            <span className="hidden">{statusLabel[mpStatus]}</span>
+          <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm font-medium select-none ${statusColor[mpStatus]}`}
+            >
+              {mpStatus === "loading" && (
+                <span className="w-3 h-3 rounded-full bg-white/80 animate-pulse inline-block" />
+              )}
+              {mpStatus === "ready" && (
+                <span className="w-3 h-3 rounded-full bg-white inline-block" />
+              )}
+              <span className="hidden">{statusLabel[mpStatus]}</span>
+            </div>
+            <div
+              ref={pinchDbgRef}
+              className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-mono select-none"
+            >
+              —
+            </div>
           </div>
         )}
       </>
