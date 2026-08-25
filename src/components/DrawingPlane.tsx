@@ -9,6 +9,7 @@ import {
   memo,
 } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   HandLandmarker,
@@ -18,8 +19,10 @@ import {
 import { BRUSH_SIZES, COLORS } from "../constants/drawing";
 import type { BrushSize, DrawColor, DrawTool } from "../constants/drawing";
 
-const PINCH_START = 0.035;
-const PINCH_STOP = 0.04;
+const IS_DEV = import.meta.env.DEV;
+
+const PINCH_START = 0.15;
+const PINCH_STOP = 0.18;
 const PINCH_LOST_TOLERANCE = 1;
 // Resolución del canvas de dibujo (independiente de la pantalla)
 const CANVAS_W = 2048;
@@ -43,6 +46,35 @@ interface DrawingPlaneProps {
 }
 
 type Point = { x: number; y: number };
+// Dibuja una flecha en el canvas 2D entre dos puntos de pantalla
+function drawArrow(
+  ctx: CanvasRenderingContext2D,
+  from: Point,
+  to: Point,
+  color: string,
+) {
+  const dx = to.x - from.x,
+    dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 4) return;
+  const nx = dx / len,
+    ny = dy / len;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  const hs = 12;
+  ctx.beginPath();
+  ctx.moveTo(to.x, to.y);
+  ctx.lineTo(to.x - nx * hs + ny * 5, to.y - ny * hs - nx * 5);
+  ctx.lineTo(to.x - nx * hs - ny * 5, to.y - ny * hs + nx * 5);
+  ctx.closePath();
+  ctx.fill();
+}
+
 type HandPinchState = {
   isPinchActive: boolean;
   lostFrames: number;
@@ -69,8 +101,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
     // ── Dimensiones del plano (llenar el viewport exactamente) ────────────────
     // Con FOV=60 y cámara en z=6, el plano en z=0 cubre la pantalla completa
     const planeH = useMemo(() => {
-      const fovRad =
-        ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
+      const fovRad = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
       return 2 * Math.tan(fovRad / 2) * Math.abs(camera.position.z);
     }, [camera]);
     const planeW = useMemo(
@@ -100,7 +131,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
 
     // ── Refs de escena ────────────────────────────────────────────────────────
     const groupRef = useRef<THREE.Group>(null); // pivote de rotación (nariz)
-    const meshRef = useRef<THREE.Mesh>(null);   // plano de dibujo
+    const meshRef = useRef<THREE.Mesh>(null); // plano de dibujo
 
     // ── Sincronización de props via refs (sin re-renders) ─────────────────────
     const brushSizeRef = useRef(brushSize);
@@ -115,9 +146,15 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       pitch: number;
     } | null>(null);
 
-    useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
-    useEffect(() => { colorRef.current = color; }, [color]);
-    useEffect(() => { toolRef.current = tool; }, [tool]);
+    useEffect(() => {
+      brushSizeRef.current = brushSize;
+    }, [brushSize]);
+    useEffect(() => {
+      colorRef.current = color;
+    }, [color]);
+    useEffect(() => {
+      toolRef.current = tool;
+    }, [tool]);
     useEffect(() => {
       isLockedRef.current = isLocked;
       if (!isLocked) {
@@ -199,7 +236,10 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             }),
             20000,
           );
-          if (destroyed) { hl.close(); return; }
+          if (destroyed) {
+            hl.close();
+            return;
+          }
           handLandmarkerRef.current = hl;
 
           try {
@@ -260,7 +300,13 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       (x: number, y: number) => {
         applyTool(draw2dCtx);
         draw2dCtx.beginPath();
-        draw2dCtx.arc(x, y, BRUSH_SIZES[brushSizeRef.current] / 2, 0, Math.PI * 2);
+        draw2dCtx.arc(
+          x,
+          y,
+          BRUSH_SIZES[brushSizeRef.current] / 2,
+          0,
+          Math.PI * 2,
+        );
         draw2dCtx.fill();
         textureDirty.current = true;
       },
@@ -304,41 +350,44 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       y: (1 - uv.y) * CANVAS_H, // UV V=1 es arriba, canvas Y=0 es arriba
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handlePointerDown = useCallback((e: any) => {
-      if (isLockedRef.current || !e.uv) return;
-      e.stopPropagation();
-      isDrawing.current = true;
-      const pos = uvToCanvas(e.uv);
-      lastPos.current = pos;
-      lastMid.current = pos;
-      drawDot(pos.x, pos.y);
-    }, [drawDot]);
+    const handlePointerDown = useCallback(
+      (e: ThreeEvent<PointerEvent>) => {
+        if (isLockedRef.current || !e.uv) return;
+        e.stopPropagation();
+        isDrawing.current = true;
+        const pos = uvToCanvas(e.uv);
+        lastPos.current = pos;
+        lastMid.current = pos;
+        drawDot(pos.x, pos.y);
+      },
+      [drawDot],
+    );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handlePointerMove = useCallback((e: any) => {
-      if (
-        isLockedRef.current ||
-        !isDrawing.current ||
-        !e.uv ||
-        !lastPos.current ||
-        !lastMid.current
-      )
-        return;
-      e.stopPropagation();
-      const pos = uvToCanvas(e.uv);
-      const prev = lastPos.current;
-      const newMid: Point = {
-        x: (prev.x + pos.x) / 2,
-        y: (prev.y + pos.y) / 2,
-      };
-      drawSegment(lastMid.current, prev, newMid);
-      lastMid.current = newMid;
-      lastPos.current = pos;
-    }, [drawSegment]);
+    const handlePointerMove = useCallback(
+      (e: ThreeEvent<PointerEvent>) => {
+        if (
+          isLockedRef.current ||
+          !isDrawing.current ||
+          !e.uv ||
+          !lastPos.current ||
+          !lastMid.current
+        )
+          return;
+        e.stopPropagation();
+        const pos = uvToCanvas(e.uv);
+        const prev = lastPos.current;
+        const newMid: Point = {
+          x: (prev.x + pos.x) / 2,
+          y: (prev.y + pos.y) / 2,
+        };
+        drawSegment(lastMid.current, prev, newMid);
+        lastMid.current = newMid;
+        lastPos.current = pos;
+      },
+      [drawSegment],
+    );
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stopPointer = useCallback((_e: any) => {
+    const stopPointer = useCallback(() => {
       if (isLockedRef.current) return;
       if (isDrawing.current && lastMid.current && lastPos.current) {
         applyTool(draw2dCtx);
@@ -355,6 +404,9 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       lastMid.current = null;
     }, [applyTool, draw2dCtx]);
 
+    // Vector reutilizable para proyecciones screen-space (evita GC por frame)
+    const _projV = useRef(new THREE.Vector3());
+
     // Estado persistente de pinch/fist entre frames
     const handPinchState = useRef(new Map<string, HandPinchState>());
     const handFistState = useRef(new Map<string, HandFistState>());
@@ -364,7 +416,12 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
     useFrame(() => {
       const video = videoRef?.current;
       const handLandmarker = handLandmarkerRef.current;
-      if (!mpReadyRef.current || !video || !handLandmarker || video.readyState < 2)
+      if (
+        !mpReadyRef.current ||
+        !video ||
+        !handLandmarker ||
+        video.readyState < 2
+      )
         return;
 
       const lmCanvas = landmarkCanvasRef?.current;
@@ -389,7 +446,8 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             ? "rgba(0,210,255,0.9)"
             : "rgba(255,210,0,0.9)";
           for (const { start, end } of HandLandmarker.HAND_CONNECTIONS) {
-            const s = lm[start], e = lm[end];
+            const s = lm[start],
+              e = lm[end];
             lmCtx.strokeStyle = connColor;
             lmCtx.lineWidth = 2;
             lmCtx.beginPath();
@@ -419,6 +477,8 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       for (const handedness of results.handedness) {
         detectedLabels.add(handedness[0].categoryName);
       }
+      // Recoge datos de distancia para el panel de debug (solo dev)
+      const pinchDbg: { label: string; dist: number; active: boolean }[] = [];
 
       for (let h_i = 0; h_i < results.landmarks.length; h_i++) {
         const lm = results.landmarks[h_i];
@@ -440,10 +500,19 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
         }
         const ps = handPinchState.current.get(handLabel)!;
 
-        const thumb = lm[4], index = lm[8];
-        const dist = Math.sqrt(
+        const thumb = lm[4],
+          index = lm[8];
+        const wrist = lm[0],
+          middleMCP = lm[9];
+        // Normalizar por el tamaño de la mano (muñeca → MCP del dedo medio)
+        // → el ratio es invariante a la distancia mano-cámara
+        const handScale = Math.sqrt(
+          (wrist.x - middleMCP.x) ** 2 + (wrist.y - middleMCP.y) ** 2,
+        );
+        const rawDist = Math.sqrt(
           (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
         );
+        const dist = handScale > 0.001 ? rawDist / handScale : rawDist;
 
         // Posición del pinch en coordenadas del canvas de dibujo
         const pinchMx = ((1 - thumb.x + 1 - index.x) / 2) * CANVAS_W;
@@ -489,6 +558,9 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
           ps.lastPos = { x: pinchMx, y: pinchMy };
         }
 
+        if (IS_DEV)
+          pinchDbg.push({ label: handLabel, dist, active: activePinch });
+
         // Indicador visual del pinch (en coordenadas de pantalla)
         if (lmCtx) {
           const pinchScreenMx = ((1 - thumb.x + 1 - index.x) / 2) * lmW;
@@ -517,6 +589,43 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             lmCtx.setLineDash([]);
           }
         }
+      }
+
+      // ── Panel de debug: distancia de pinch (solo dev) ─────────────────────
+      if (IS_DEV && lmCtx) {
+        const lines =
+          pinchDbg.length > 0
+            ? pinchDbg.map(
+                ({ label, dist, active }) =>
+                  `${label[0]}: ${dist.toFixed(3)}${active ? " ●" : ""}`,
+              )
+            : ["—"];
+        const pad = 10;
+        const lineH = 18;
+        const boxW = 110;
+        const boxH = pad * 2 + lines.length * lineH;
+        const bx = 12,
+          by = 12;
+        lmCtx.fillStyle = "rgba(0,0,0,0.55)";
+        lmCtx.beginPath();
+        lmCtx.roundRect(bx, by, boxW, boxH, 6);
+        lmCtx.fill();
+        lmCtx.fillStyle = "white";
+        lmCtx.font = "bold 13px monospace";
+        lmCtx.textBaseline = "top";
+        lmCtx.textAlign = "left";
+        lines.forEach((line, i) => {
+          lmCtx.fillStyle = pinchDbg[i]?.active ? "#44ff88" : "white";
+          lmCtx.fillText(line, bx + pad, by + pad + i * lineH);
+        });
+        // Umbrales de referencia
+        lmCtx.fillStyle = "rgba(255,255,255,0.45)";
+        lmCtx.font = "11px monospace";
+        lmCtx.fillText(
+          `start<${PINCH_START} stop<${PINCH_STOP}`,
+          bx + pad,
+          by + boxH + 4,
+        );
       }
 
       // Decaimiento para manos que dejaron de detectarse
@@ -560,9 +669,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
           const noseNY = nose.y;
 
           // Yaw (eje Y): diferencia de profundidad Z entre mejillas
-          const cheekSpanX = Math.abs(
-            (1 - leftCheek.x) - (1 - rightCheek.x),
-          );
+          const cheekSpanX = Math.abs(1 - leftCheek.x - (1 - rightCheek.x));
           const yaw =
             Math.atan2(leftCheek.z - rightCheek.z, cheekSpanX + 0.001) *
             (180 / Math.PI);
@@ -570,8 +677,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
           // Pitch (eje X): diferencia de profundidad Z entre nariz y barbilla
           const noseToChinkY = Math.abs(chin.y - nose.y);
           const pitch =
-            Math.atan2(nose.z - chin.z, noseToChinkY + 0.001) *
-            (180 / Math.PI);
+            Math.atan2(nose.z - chin.z, noseToChinkY + 0.001) * (180 / Math.PI);
 
           // Primer frame bloqueado: guardar referencia
           if (!lockStateRef.current) {
@@ -585,7 +691,8 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             pitch: p0,
           } = lockStateRef.current;
 
-          const deltaRoll = (angle - a0) * (Math.PI / 180);
+          // Roll negado: Three.js rotateZ+ = CCW, CSS rotateZ+ = CW (Y invertida)
+          const deltaRoll = -(angle - a0) * (Math.PI / 180);
           const deltaYaw = (yaw - y0) * (Math.PI / 180);
           const deltaPitch = (pitch - p0) * (Math.PI / 180);
 
@@ -605,6 +712,68 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
           // → el punto de anclaje original se mantiene sobre la nariz actual
           if (meshRef.current) {
             meshRef.current.position.set(-nose0WorldX, -nose0WorldY, 0);
+          }
+
+          // ── Guías de orientación del canvas (solo en desarrollo) ──────────
+          if (IS_DEV && lmCtx && meshRef.current) {
+            // Forzar actualización de matrices para que matrixWorld sea del frame actual
+            groupRef.current?.updateWorldMatrix(true, true);
+
+            // Proyecta un punto local del mesh → coordenadas de pantalla (CSS px)
+            const project = (lx: number, ly: number): Point => {
+              _projV.current
+                .set(lx, ly, 0)
+                .applyMatrix4(meshRef.current!.matrixWorld)
+                .project(camera);
+              return {
+                x: ((_projV.current.x + 1) / 2) * lmW,
+                y: ((-_projV.current.y + 1) / 2) * lmH,
+              };
+            };
+
+            const hw = planeW / 2,
+              hh = planeH / 2;
+            const tl = project(-hw, hh);
+            const tr = project(hw, hh);
+            const br = project(hw, -hh);
+            const bl = project(-hw, -hh);
+            const center = project(0, 0);
+            // +X canvas = derecha del dibujo (rojo)
+            const rightPt = project(hw / 3, 0);
+            // -Y Three.js = abajo en el canvas de dibujo (verde)
+            const downPt = project(0, -hh / 3);
+
+            // Borde discontinuo del canvas
+            lmCtx.strokeStyle = "rgba(255,255,0,0.75)";
+            lmCtx.lineWidth = 2;
+            lmCtx.setLineDash([8, 4]);
+            lmCtx.beginPath();
+            lmCtx.moveTo(tl.x, tl.y);
+            lmCtx.lineTo(tr.x, tr.y);
+            lmCtx.lineTo(br.x, br.y);
+            lmCtx.lineTo(bl.x, bl.y);
+            lmCtx.closePath();
+            lmCtx.stroke();
+            lmCtx.setLineDash([]);
+
+            // Puntos en esquinas
+            for (const pt of [tl, tr, br, bl]) {
+              lmCtx.fillStyle = "rgba(255,255,0,0.9)";
+              lmCtx.beginPath();
+              lmCtx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+              lmCtx.fill();
+            }
+
+            // Eje X: derecha del canvas → flecha roja
+            drawArrow(lmCtx, center, rightPt, "#ff4444");
+            // Eje Y: abajo del canvas → flecha verde
+            drawArrow(lmCtx, center, downPt, "#44ff88");
+
+            // Punto central
+            lmCtx.fillStyle = "white";
+            lmCtx.beginPath();
+            lmCtx.arc(center.x, center.y, 5, 0, Math.PI * 2);
+            lmCtx.fill();
           }
         }
       }
