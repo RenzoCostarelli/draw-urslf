@@ -22,8 +22,15 @@ export function useWebcam() {
     document.body.appendChild(video)
     videoRef.current = video
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } })
+      .getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: isMobile ? 640 : 1280 },
+          height: { ideal: isMobile ? 480 : 720 },
+        },
+      })
       .then((stream) => {
         video.srcObject = stream
         video.play()

@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@keyframes fade-out {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@utility animate-fade-out {
+  animation: fade-out 0.9s ease-out forwards;
+}
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;

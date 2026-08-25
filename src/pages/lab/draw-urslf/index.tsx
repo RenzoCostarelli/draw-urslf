@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
+import { Perf } from "r3f-perf";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import WebcamPlane from "../../../components/WebcamPlane";
@@ -51,10 +52,12 @@ export default function DrawUrslf() {
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [mpStatus, setMpStatus] = useState<MPStatus>("loading");
 
+  const [showFlash, setShowFlash] = useState(false);
+  const [pinchDbg, setPinchDbg] = useState<{ label: string; dist: number; active: boolean }[]>([]);
+
   const videoRef = useWebcam();
   const drawingRef = useRef<DrawingCanvasHandle>(null);
   const threeContainerRef = useRef<HTMLDivElement>(null);
-  const landmarkCanvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -186,8 +189,14 @@ export default function DrawUrslf() {
         <Canvas
           camera={{ position: [0, 0, 6], fov: 60 }}
           className="w-full h-full"
-          gl={{ preserveDrawingBuffer: true }}
+          dpr={[1, 2]}
+          gl={{
+            preserveDrawingBuffer: true,
+            antialias: false,
+            powerPreference: "high-performance",
+          }}
         >
+          {import.meta.env.DEV && <Perf position="top-right" />}
           <WebcamPlane videoRef={videoRef} />
           <DrawingPlane
             ref={drawingRef}
@@ -196,18 +205,36 @@ export default function DrawUrslf() {
             tool={tool}
             videoRef={videoRef}
             isLocked={isLocked}
-            landmarkCanvasRef={landmarkCanvasRef}
             onMpStatusChange={setMpStatus}
             onHistoryChange={handleHistoryChange}
+            onClearFlash={() => { setShowFlash(true); setTimeout(() => setShowFlash(false), 900); }}
+            onPinchDebug={import.meta.env.DEV ? setPinchDbg : undefined}
           />
         </Canvas>
       </div>
 
-      {/* Overlay DOM: canvas de landmarks de manos/cara */}
-      <canvas
-        ref={landmarkCanvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-      />
+      {/* Flash de borrado */}
+      {showFlash && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-white text-5xl font-bold drop-shadow-lg animate-fade-out select-none">
+            ¡Borrado!
+          </span>
+        </div>
+      )}
+
+      {/* Panel debug de pinch (solo desarrollo) */}
+      {import.meta.env.DEV && pinchDbg.length > 0 && (
+        <div className="absolute top-3 left-3 bg-black/55 rounded px-3 py-2 text-xs font-mono text-white pointer-events-none select-none">
+          {pinchDbg.map((d) => (
+            <div key={d.label} style={{ color: d.active ? "#44ff88" : "white" }}>
+              {d.label[0]}: {d.dist.toFixed(3)}{d.active ? " ●" : ""}
+            </div>
+          ))}
+          <div className="text-white/45 mt-1">
+            start&lt;{0.15} stop&lt;{0.18}
+          </div>
+        </div>
+      )}
 
       {/* Badge de estado MediaPipe */}
       {videoRef && (

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -7,19 +7,50 @@ interface WebcamPlaneProps {
 }
 
 export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
-  const { scene } = useThree()
+  const { scene, size } = useThree()
+  const textureRef = useRef<THREE.VideoTexture | null>(null)
+
+  // Ajusta el UV mapping del background para "object-fit: cover" + espejo horizontal.
+  // Se ejecuta al crear la textura y cada vez que cambia el tamaño del canvas.
+  const applyAspect = useCallback(() => {
+    const texture = textureRef.current
+    const video = videoRef.current
+    if (!texture || !video || !video.videoWidth) return
+
+    const va = video.videoWidth / video.videoHeight   // aspect ratio del video
+    const ca = size.width / size.height               // aspect ratio del canvas
+
+    let sx: number, sy: number, ox: number, oy: number
+
+    if (va > ca) {
+      // Video más ancho que el canvas → fit height, crop width
+      sx = ca / va
+      sy = 1
+      ox = (1 - sx) / 2
+      oy = 0
+    } else {
+      // Video más alto que el canvas → fit width, crop height
+      sx = 1
+      sy = va / ca
+      ox = 0
+      oy = (1 - sy) / 2
+    }
+
+    // repeat.x negativo = espejo horizontal; offset.x = sx + ox mantiene el crop centrado tras el flip
+    texture.repeat.set(-sx, sy)
+    texture.offset.set(sx + ox, oy)
+  }, [size, videoRef])
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    let texture: THREE.VideoTexture | null = null
-
     const setup = () => {
-      texture = new THREE.VideoTexture(video)
+      textureRef.current?.dispose()
+      const texture = new THREE.VideoTexture(video)
       texture.colorSpace = THREE.SRGBColorSpace
-      texture.repeat.set(-1, 1)
-      texture.offset.set(1, 0)
+      textureRef.current = texture
+      applyAspect()
       scene.background = texture
     }
 
@@ -30,10 +61,16 @@ export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
     }
 
     return () => {
-      texture?.dispose()
+      textureRef.current?.dispose()
+      textureRef.current = null
       scene.background = null
     }
-  }, [scene, videoRef])
+  }, [scene, videoRef]) // no incluir applyAspect para no recrear la textura al cambiar tamaño
+
+  // Re-aplicar aspect cada vez que cambia el tamaño del canvas o el video
+  useEffect(() => {
+    applyAspect()
+  }, [applyAspect])
 
   return null
 }

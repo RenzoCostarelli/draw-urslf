@@ -100,7 +100,7 @@ export default function Toolbar({
                 <button
                   key={size}
                   onClick={() => onBrushSizeChange(size)}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
                     brushSize === size
                       ? "bg-white/30 ring-2 ring-white"
                       : "bg-white/10 hover:bg-white/20"
@@ -126,7 +126,7 @@ export default function Toolbar({
         <button
           onClick={handleBrush}
           title="Pincel"
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             tool === "brush"
               ? "bg-white/30 ring-2 ring-white"
               : "bg-white/10 hover:bg-white/20"
@@ -141,7 +141,7 @@ export default function Toolbar({
         <button
           onClick={handleEraser}
           title="Goma de borrar"
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             tool === "eraser"
               ? "bg-white/30 ring-2 ring-white"
               : "bg-white/10 hover:bg-white/20"
@@ -156,7 +156,7 @@ export default function Toolbar({
         <button
           onClick={() => toggle("colors")}
           title="Colores"
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             panel === "colors" ? "ring-2 ring-white" : "hover:brightness-110"
           }`}
           style={{ backgroundColor: COLORS[color] + "bb" }}
@@ -170,7 +170,7 @@ export default function Toolbar({
         {/* <button
           onClick={onCapture}
           title="Tomar foto"
-          className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all"
+          className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all"
         >
           <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
             <path d="M12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4zm0-8.4A5.2 5.2 0 1 0 12 17.2 5.2 5.2 0 0 0 12 6.8zM9 3l-1.83 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9z" />
@@ -188,7 +188,7 @@ export default function Toolbar({
                 ? "Detener grabación"
                 : "Grabar video"
           }
-          className={`relative w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             isTranscoding
               ? "bg-yellow-500/50 ring-2 ring-yellow-400 cursor-not-allowed"
               : isRecording
@@ -262,7 +262,7 @@ export default function Toolbar({
         <button
           onClick={onLockToggle}
           title={isLocked ? "Desbloquear capa" : "Bloquear y rotar con la cara"}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             isLocked
               ? "bg-yellow-400/30 ring-2 ring-yellow-300"
               : "bg-white/10 hover:bg-white/20"
@@ -286,7 +286,7 @@ export default function Toolbar({
           onClick={onUndo}
           disabled={!canUndo}
           title="Deshacer"
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             canUndo
               ? "bg-white/10 hover:bg-white/20"
               : "bg-white/5 opacity-30 cursor-not-allowed"
@@ -302,7 +302,7 @@ export default function Toolbar({
           onClick={onRedo}
           disabled={!canRedo}
           title="Rehacer"
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
             canRedo
               ? "bg-white/10 hover:bg-white/20"
               : "bg-white/5 opacity-30 cursor-not-allowed"
@@ -317,7 +317,7 @@ export default function Toolbar({
         <button
           onClick={handleClear}
           title="Borrar todo"
-          className="w-12 h-12 rounded-xl flex items-center justify-center bg-white/10 hover:bg-red-500/40 transition-all"
+          className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/10 hover:bg-red-500/40 transition-all"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
