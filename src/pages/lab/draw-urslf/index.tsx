@@ -44,6 +44,8 @@ export default function DrawUrslf() {
   const [color, setColor] = useState<DrawColor>("red");
   const [tool, setTool] = useState<DrawTool>("brush");
   const [isLocked, setIsLocked] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscoding, setIsTranscoding] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -57,6 +59,11 @@ export default function DrawUrslf() {
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ffmpegRef = useRef<FFmpeg | null>(null);
+
+  const handleHistoryChange = useCallback((u: boolean, r: boolean) => {
+    setCanUndo(u);
+    setCanRedo(r);
+  }, []);
 
   const loadFFmpeg = useCallback(async (): Promise<FFmpeg> => {
     if (ffmpegRef.current?.loaded) return ffmpegRef.current;
@@ -191,6 +198,7 @@ export default function DrawUrslf() {
             isLocked={isLocked}
             landmarkCanvasRef={landmarkCanvasRef}
             onMpStatusChange={setMpStatus}
+            onHistoryChange={handleHistoryChange}
           />
         </Canvas>
       </div>
@@ -233,6 +241,10 @@ export default function DrawUrslf() {
         onClear={() => drawingRef.current?.clear()}
         onRecordToggle={handleRecordToggle}
         onLockToggle={() => setIsLocked((l) => !l)}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={() => drawingRef.current?.undo()}
+        onRedo={() => drawingRef.current?.redo()}
       />
     </div>
   );

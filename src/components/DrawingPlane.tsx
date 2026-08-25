@@ -25,12 +25,13 @@ const PINCH_START = 0.15;
 const PINCH_STOP = 0.18;
 const PINCH_LOST_TOLERANCE = 1;
 // Resolución del canvas de dibujo (independiente de la pantalla)
-const CANVAS_W = 2048;
-const CANVAS_H = 1152;
+const CANVAS_MAX = 2048; // longitud del lado mayor del canvas de dibujo
 
 export interface DrawingCanvasHandle {
   clear: () => void;
   getCanvas: () => HTMLCanvasElement | null;
+  undo: () => void;
+  redo: () => void;
 }
 
 export type MPStatus = "loading" | "ready" | "error";
@@ -43,6 +44,7 @@ interface DrawingPlaneProps {
   isLocked?: boolean;
   landmarkCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   onMpStatusChange?: (status: MPStatus) => void;
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 type Point = { x: number; y: number };
@@ -93,6 +95,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       isLocked = false,
       landmarkCanvasRef,
       onMpStatusChange,
+      onHistoryChange,
     },
     ref,
   ) {
@@ -111,9 +114,14 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
 
     // ── Canvas 2D offscreen + CanvasTexture ───────────────────────────────────
     const offscreenCanvas = useMemo(() => {
+      // Ajustar el canvas al aspect ratio inicial del viewport para que los
+      // trazos se vean correctos en portrait y landscape sin distorsión.
+      const aspect = window.innerWidth / window.innerHeight;
+      const cw = aspect >= 1 ? CANVAS_MAX : Math.max(1, Math.round(CANVAS_MAX * aspect));
+      const ch = aspect >= 1 ? Math.max(1, Math.round(CANVAS_MAX / aspect)) : CANVAS_MAX;
       const c = document.createElement("canvas");
-      c.width = CANVAS_W;
-      c.height = CANVAS_H;
+      c.width = cw;
+      c.height = ch;
       return c;
     }, []);
     const draw2dCtx = useMemo(
@@ -328,16 +336,56 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       [applyTool, draw2dCtx],
     );
 
+    // ── Historial de deshacer/rehacer (máx. 3 pasos) ─────────────────────────
+    const MAX_HISTORY = 3;
+    const undoStack = useRef<ImageData[]>([]);
+    const redoStack = useRef<ImageData[]>([]);
+
     const clearCanvas = useCallback(() => {
       draw2dCtx.globalCompositeOperation = "source-over";
-      draw2dCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+      draw2dCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
       textureDirty.current = true;
-    }, [draw2dCtx]);
+      undoStack.current = [];
+      redoStack.current = [];
+      onHistoryChange?.(false, false);
+    }, [draw2dCtx, offscreenCanvas, onHistoryChange]);
+
+    const saveSnapshot = useCallback(() => {
+      const snap = draw2dCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      undoStack.current.push(snap);
+      if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
+      redoStack.current = [];
+      onHistoryChange?.(true, false);
+    }, [draw2dCtx, offscreenCanvas, onHistoryChange]);
+
+    const undo = useCallback(() => {
+      if (undoStack.current.length === 0) return;
+      const current = draw2dCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      redoStack.current.push(current);
+      if (redoStack.current.length > MAX_HISTORY) redoStack.current.shift();
+      const prev = undoStack.current.pop()!;
+      draw2dCtx.globalCompositeOperation = "source-over";
+      draw2dCtx.putImageData(prev, 0, 0);
+      textureDirty.current = true;
+      onHistoryChange?.(undoStack.current.length > 0, true);
+    }, [draw2dCtx, offscreenCanvas, onHistoryChange]);
+
+    const redo = useCallback(() => {
+      if (redoStack.current.length === 0) return;
+      const current = draw2dCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      undoStack.current.push(current);
+      if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
+      const next = redoStack.current.pop()!;
+      draw2dCtx.globalCompositeOperation = "source-over";
+      draw2dCtx.putImageData(next, 0, 0);
+      textureDirty.current = true;
+      onHistoryChange?.(true, redoStack.current.length > 0);
+    }, [draw2dCtx, offscreenCanvas, onHistoryChange]);
 
     useImperativeHandle(
       ref,
-      () => ({ clear: clearCanvas, getCanvas: () => offscreenCanvas }),
-      [clearCanvas, offscreenCanvas],
+      () => ({ clear: clearCanvas, getCanvas: () => offscreenCanvas, undo, redo }),
+      [clearCanvas, offscreenCanvas, undo, redo],
     );
 
     // ── Dibujo con puntero (eventos R3F → coordenadas UV → canvas) ────────────
@@ -345,22 +393,26 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
     const lastPos = useRef<Point | null>(null);
     const lastMid = useRef<Point | null>(null);
 
-    const uvToCanvas = (uv: THREE.Vector2): Point => ({
-      x: uv.x * CANVAS_W,
-      y: (1 - uv.y) * CANVAS_H, // UV V=1 es arriba, canvas Y=0 es arriba
-    });
+    const uvToCanvas = useCallback(
+      (uv: THREE.Vector2): Point => ({
+        x: uv.x * offscreenCanvas.width,
+        y: (1 - uv.y) * offscreenCanvas.height, // UV V=1 es arriba, canvas Y=0 es arriba
+      }),
+      [offscreenCanvas],
+    );
 
     const handlePointerDown = useCallback(
       (e: ThreeEvent<PointerEvent>) => {
         if (isLockedRef.current || !e.uv) return;
         e.stopPropagation();
+        saveSnapshot();
         isDrawing.current = true;
         const pos = uvToCanvas(e.uv);
         lastPos.current = pos;
         lastMid.current = pos;
         drawDot(pos.x, pos.y);
       },
-      [drawDot],
+      [drawDot, saveSnapshot, uvToCanvas],
     );
 
     const handlePointerMove = useCallback(
@@ -384,7 +436,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
         lastMid.current = newMid;
         lastPos.current = pos;
       },
-      [drawSegment],
+      [drawSegment, uvToCanvas],
     );
 
     const stopPointer = useCallback(() => {
@@ -515,8 +567,8 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
         const dist = handScale > 0.001 ? rawDist / handScale : rawDist;
 
         // Posición del pinch en coordenadas del canvas de dibujo
-        const pinchMx = ((1 - thumb.x + 1 - index.x) / 2) * CANVAS_W;
-        const pinchMy = ((thumb.y + index.y) / 2) * CANVAS_H;
+        const pinchMx = ((1 - thumb.x + 1 - index.x) / 2) * offscreenCanvas.width;
+        const pinchMy = ((thumb.y + index.y) / 2) * offscreenCanvas.height;
 
         let activePinch = false;
         if (!ps.isPinchActive) {
@@ -524,6 +576,7 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             ([label, state]) => label !== handLabel && state.isPinchActive,
           );
           if (dist < PINCH_START && !otherHandDrawing) {
+            saveSnapshot();
             ps.isPinchActive = true;
             ps.lostFrames = 0;
           }

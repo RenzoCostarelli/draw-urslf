@@ -18,6 +18,10 @@ interface ToolbarProps {
   // onCapture: () => void;
   onRecordToggle: () => void;
   onLockToggle: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 type Panel = "brush" | "eraser" | "colors" | null;
@@ -49,6 +53,10 @@ export default function Toolbar({
   onClear,
   onRecordToggle,
   onLockToggle,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: ToolbarProps) {
   const [panel, setPanel] = useState<Panel>(null);
 
@@ -170,7 +178,7 @@ export default function Toolbar({
         </button> */}
 
         {/* Grabar video */}
-        <button
+        {/* <button
           onClick={onRecordToggle}
           disabled={isTranscoding}
           title={
@@ -202,7 +210,7 @@ export default function Toolbar({
             </svg>
           ) : isRecording ? (
             <>
-              {/* Countdown arc */}
+             
               <svg
                 viewBox="0 0 44 44"
                 width="44"
@@ -248,7 +256,7 @@ export default function Toolbar({
               />
             </svg>
           )}
-        </button>
+        </button> */}
 
         {/* Candado */}
         <button
@@ -260,8 +268,48 @@ export default function Toolbar({
               : "bg-white/10 hover:bg-white/20"
           }`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
-            <path fill="white" d="M14.825 15.825Q16 14.65 16 13H8q0 1.65 1.175 2.825T12 17t2.825-1.175M12 22q-1.875 0-3.512-.712t-2.85-1.925t-1.925-2.85T3 13V2h18v11q0 1.875-.712 3.513t-1.925 2.85t-2.85 1.925T12 22M7 9h4q0-.825-.587-1.412T9 7t-1.412.588T7 9m6 0h4q0-.825-.587-1.412T15 7t-1.412.588T13 9"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+          >
+            <path
+              fill="white"
+              d="M14.825 15.825Q16 14.65 16 13H8q0 1.65 1.175 2.825T12 17t2.825-1.175M12 22q-1.875 0-3.512-.712t-2.85-1.925t-1.925-2.85T3 13V2h18v11q0 1.875-.712 3.513t-1.925 2.85t-2.85 1.925T12 22M7 9h4q0-.825-.587-1.412T9 7t-1.412.588T7 9m6 0h4q0-.825-.587-1.412T15 7t-1.412.588T13 9"
+            />
+          </svg>
+        </button>
+
+        {/* Deshacer */}
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Deshacer"
+          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+            canUndo
+              ? "bg-white/10 hover:bg-white/20"
+              : "bg-white/5 opacity-30 cursor-not-allowed"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
+            <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z" />
+          </svg>
+        </button>
+
+        {/* Rehacer */}
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Rehacer"
+          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+            canRedo
+              ? "bg-white/10 hover:bg-white/20"
+              : "bg-white/5 opacity-30 cursor-not-allowed"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
+            <path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z" />
           </svg>
         </button>
 
