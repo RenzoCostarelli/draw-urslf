@@ -60,29 +60,33 @@ export function useMediaPipe({ videoRef, onStatusChange }: UseMediaPipeParams) {
         if (destroyed) { hl.close(); return; }
         handLandmarkerRef.current = hl;
 
-        try {
-          const createFace = (delegate: "GPU" | "CPU") =>
-            FaceLandmarker.createFromOptions(vision, {
-              baseOptions: { modelAssetPath: "/models/face_landmarker.task", delegate },
-              runningMode: "VIDEO",
-              numFaces: 1,
-            });
-          let fl: FaceLandmarker;
-          try {
-            fl = await withTimeout(createFace("GPU"), 20000);
-          } catch {
-            fl = await withTimeout(createFace("CPU"), 20000);
-          }
-          if (!destroyed) faceLandmarkerRef.current = fl;
-          else fl.close();
-        } catch (e) {
-          console.warn("FaceLandmarker no disponible:", e);
-        }
-
+        // HandLandmarker listo → activar dibujo inmediatamente
         if (!destroyed) {
           mpReadyRef.current = true;
           updateStatus("ready");
         }
+
+        // Cargar FaceLandmarker en background (necesario solo para modo locked/3D)
+        const createFace = (delegate: "GPU" | "CPU") =>
+          FaceLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: "/models/face_landmarker.task", delegate },
+            runningMode: "VIDEO",
+            numFaces: 1,
+          });
+        (async () => {
+          try {
+            let fl: FaceLandmarker;
+            try {
+              fl = await withTimeout(createFace("GPU"), 20000);
+            } catch {
+              fl = await withTimeout(createFace("CPU"), 20000);
+            }
+            if (!destroyed) faceLandmarkerRef.current = fl;
+            else fl.close();
+          } catch (e) {
+            console.warn("FaceLandmarker no disponible:", e);
+          }
+        })();
       } catch (err) {
         if (!destroyed) {
           console.error("MediaPipe init error:", err);

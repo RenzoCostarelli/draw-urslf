@@ -184,11 +184,17 @@ export default function DrawUrslf() {
 
   return (
     <div className="relative w-full h-full bg-neutral-900">
+      <title>draw urslf | lab</title>
+      <meta name="description" content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión." />
+      <meta property="og:title" content="draw urslf | lab" />
+      <meta property="og:description" content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión." />
+      <meta property="og:type" content="website" />
       {/* Three.js: webcam de fondo + plano de dibujo */}
       <div ref={threeContainerRef} className="absolute inset-0">
         <Canvas
           camera={{ position: [0, 0, 6], fov: 60 }}
           className="w-full h-full"
+          style={{ touchAction: "none" }}
           dpr={[1, 2]}
           gl={{
             preserveDrawingBuffer: true,
