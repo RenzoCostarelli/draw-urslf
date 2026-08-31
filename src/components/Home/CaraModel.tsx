@@ -104,7 +104,11 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
       return;
     }
 
-    // Create AudioContext once – it starts suspended on mobile (that's fine)
+    // ── Create AudioContext (once, here) ──────────────────────────────────
+    // Desktop browsers allow this without a prior gesture if the user has
+    // already interacted anywhere on the page. Mobile browsers start it in
+    // "suspended" state; the touchstart handler below resumes it from within
+    // the user-gesture call stack, which satisfies the autoplay policy.
     if (!thereminRef.current) {
       try {
         const ctx = new AudioContext();
@@ -130,6 +134,11 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
         osc.start();
 
         thereminRef.current = { ctx, osc, gain, lfo, lfoGain };
+        ctx.addEventListener("statechange", () => onAudioStateChange?.(ctx.state));
+        onAudioStateChange?.(ctx.state);
+
+        // Desktop: try to resume immediately (no-op if still suspended)
+        void ctx.resume();
       } catch (e) {
         console.warn("Web Audio API unavailable:", e);
         return;
@@ -138,31 +147,21 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
 
     const { ctx } = thereminRef.current;
 
-    // Report state changes (suspended ↔ running) to parent for debug UI
-    const onStateChange = () => onAudioStateChange?.(ctx.state);
-    ctx.addEventListener("statechange", onStateChange);
-    onAudioStateChange?.(ctx.state); // emit current state immediately
-
-    // unlock() is called inside native DOM gesture events so all browsers
-    // accept it as a valid user gesture. The silent buffer is required to
-    // fully unlock iOS Safari (resume() alone is not always sufficient).
-    // No { once:true } – the context can become suspended again and needs
-    // to be re-resumed on the next gesture.
-    const unlock = () => {
+    // ── Mobile resume (called from touchstart – a valid user gesture) ─────
+    // resume() is what the autoplay policy actually requires. The silent
+    // buffer is extra insurance for older iOS Safari where resume() alone
+    // sometimes isn't enough to flip state to "running".
+    const resumeFromGesture = () => {
       if (ctx.state === "running") return;
       const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
       src.start();
-      ctx.resume();
+      void ctx.resume();
     };
 
-    // ── Touch position tracking (bypasses R3F hit-testing) ─────────────────
-    // On mobile, onPointerEnter/Down only fire when the touch hits the mesh
-    // geometry. This means touching between wireframe lines gives no audio.
-    // Native touch listeners read the finger position from the canvas rect
-    // directly, so the theremin works anywhere on the canvas.
+    // ── Touch position tracking (bypasses R3F hit-testing) ────────────────
     const toNDC = (touch: Touch) => {
       const r = canvas.getBoundingClientRect();
       return {
@@ -172,12 +171,12 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      unlock(); // also unlock AudioContext on this gesture
+      resumeFromGesture(); // ctx already exists; just needs resuming on mobile
       touchActiveRef.current = true;
       touchPosRef.current = toNDC(e.touches[0]);
     };
     const onTouchMove = (e: TouchEvent) => {
-      touchPosRef.current = toNDC(e.touches[0]);
+      if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
     };
     const onTouchEnd = () => {
       touchActiveRef.current = false;
@@ -187,21 +186,10 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     canvas.addEventListener("touchmove", onTouchMove, { passive: true });
     canvas.addEventListener("touchend", onTouchEnd, { passive: true });
 
-    // pointerdown / click for desktop unlock
-    canvas.addEventListener("pointerdown", unlock);
-    canvas.addEventListener("click", unlock);
-
-    // Attempt immediate resume – works on desktop if user has already
-    // interacted with the page anywhere before reaching the canvas
-    unlock();
-
     return () => {
-      ctx.removeEventListener("statechange", onStateChange);
       canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("touchmove", onTouchMove);
       canvas.removeEventListener("touchend", onTouchEnd);
-      canvas.removeEventListener("pointerdown", unlock);
-      canvas.removeEventListener("click", unlock);
     };
   }, [audioEnabled, gl, onAudioStateChange]);
 

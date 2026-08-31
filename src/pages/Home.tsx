@@ -21,7 +21,7 @@ export default function Home() {
       />
       <div className="relative h-svh w-svw">
         {/* Debug audio badge – mobile only */}
-        <div className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+        {/* <div className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <span
             className={`
               font-mono text-[10px] tracking-widest uppercase px-3 py-1 border
@@ -30,7 +30,7 @@ export default function Home() {
           >
             audio: {audioState ?? "—"}
           </span>
-        </div>
+        </div> */}
 
         {/* <div className="absolute bottom-15 right-5">
           <button
