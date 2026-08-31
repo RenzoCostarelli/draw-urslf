@@ -6,7 +6,7 @@ export default function Home() {
 
   return (
     <>
-      <title>rnz0_</title>
+      <title>/rnz0</title>
       <meta name="description" content="Lab de experimentación digital" />
       <meta property="og:title" content="rnz0_" />
       <meta
