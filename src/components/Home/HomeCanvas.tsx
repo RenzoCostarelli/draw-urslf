@@ -4,9 +4,10 @@ import { CaraModel } from "./CaraModel";
 
 interface HomeCanvasProps {
   audioEnabled?: boolean;
+  onAudioStateChange?: (state: AudioContextState | null) => void;
 }
 
-export default function HomeCanvas({ audioEnabled = false }: HomeCanvasProps) {
+export default function HomeCanvas({ audioEnabled = false, onAudioStateChange }: HomeCanvasProps) {
   return (
     <Canvas
       camera={{
@@ -19,7 +20,7 @@ export default function HomeCanvas({ audioEnabled = false }: HomeCanvasProps) {
       className="h-full w-full"
     >
       {/* <OrbitControls enableDamping dampingFactor={0.05} /> */}
-      <CaraModel scale={7} position={[0, -1.5, 0]} audioEnabled={audioEnabled} />
+      <CaraModel scale={7} position={[0, -1.5, 0]} audioEnabled={audioEnabled} onAudioStateChange={onAudioStateChange} />
       <EffectComposer multisampling={2}>
         <Bloom
           intensity={0.5}

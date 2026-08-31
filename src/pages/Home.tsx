@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import HomeCanvas from "../components/Home/HomeCanvas";
 
 export default function Home() {
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [audioState, setAudioState] = useState<AudioContextState | null>(null);
+
+  const handleAudioStateChange = useCallback(
+    (state: AudioContextState | null) => setAudioState(state),
+    [],
+  );
 
   return (
     <>
@@ -14,6 +20,18 @@ export default function Home() {
         content="Lab de experimentación digital"
       />
       <div className="relative h-svh w-svw">
+        {/* Debug audio badge – mobile only */}
+        <div className="md:hidden absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <span
+            className={`
+              font-mono text-[10px] tracking-widest uppercase px-3 py-1 border
+              ${audioState === "running" ? "border-green-500 text-green-500" : "border-red-500 text-red-500"}
+            `}
+          >
+            audio: {audioState ?? "—"}
+          </span>
+        </div>
+
         {/* <div className="absolute bottom-15 right-5">
           <button
             onClick={() => setAudioEnabled((prev) => !prev)}
@@ -33,7 +51,10 @@ export default function Home() {
             </span>
           </button>
         </div> */}
-        <HomeCanvas audioEnabled={audioEnabled} />
+        <HomeCanvas
+          audioEnabled={audioEnabled}
+          onAudioStateChange={handleAudioStateChange}
+        />
       </div>
     </>
   );
