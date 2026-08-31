@@ -89,6 +89,9 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
       if (!thereminRef.current) {
         try {
           const ctx = new AudioContext();
+          // AudioContext starts suspended until a user gesture – resume() is
+          // called again in onPointerEnter to satisfy the autoplay policy
+          ctx.resume();
 
           // Main oscillator – sine for clean theremin tone
           const osc = ctx.createOscillator();
@@ -196,12 +199,17 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
         material={_material}
         onPointerEnter={() => {
           targetHoverRef.current = 1;
+          // Resume AudioContext here – pointer events are valid user gestures
+          thereminRef.current?.ctx.resume();
         }}
         onPointerLeave={() => {
           targetHoverRef.current = 0;
         }}
         onPointerDown={() => {
           targetHoverRef.current = 1;
+          // Also resume here – on mobile, pointerdown is the most reliable
+          // direct user gesture (iOS Safari requires synchronous resume)
+          thereminRef.current?.ctx.resume();
         }}
         onPointerUp={() => {
           targetHoverRef.current = 0;
