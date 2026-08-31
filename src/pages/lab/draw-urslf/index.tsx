@@ -198,12 +198,12 @@ export default function DrawUrslf() {
 
   return (
     <div className="relative w-full h-full bg-neutral-900 flex-1">
-      <title>draw-urslf | *.lab /rnz0</title>
+      <title>draw-urslf | *.lab /rnz0_</title>
       <meta
         name="description"
         content="Proyecto de investigación utilizando mediapipe para detección de gestos, rostro y manos."
       />
-      <meta property="og:title" content="*.lab /rnz0" />
+      <meta property="og:title" content="*.lab /rnz0_" />
       <meta
         property="og:description"
         content="Proyecto de investigación utilizando mediapipe para detección de gestos, rostro y manos."
@@ -223,6 +223,7 @@ export default function DrawUrslf() {
           }}
         >
           {import.meta.env.DEV && <Perf position="top-right" />}
+
           <WebcamPlane videoRef={videoRef} />
           <DrawingPlane
             ref={drawingRef}

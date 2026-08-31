@@ -76,14 +76,9 @@ interface ThereminAudio {
 
 type CaraModelProps = JSX.IntrinsicElements["group"] & {
   audioEnabled?: boolean;
-  onAudioStateChange?: (state: AudioContextState | null) => void;
 };
 
-export function CaraModel({
-  audioEnabled = false,
-  onAudioStateChange,
-  ...props
-}: CaraModelProps) {
+export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
   const { nodes } = useGLTF(
     "/models/home/FaceModel2.glb",
   ) as unknown as GLTFResult;
@@ -112,7 +107,6 @@ export function CaraModel({
     const canvas = gl.domElement;
 
     if (!audioEnabled) {
-      onAudioStateChange?.(null);
       if (thereminRef.current) {
         const { gain, ctx } = thereminRef.current;
         gain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
@@ -171,9 +165,7 @@ export function CaraModel({
             t.lfo.start();
             t.osc.start();
           }
-          onAudioStateChange?.(ctx.state);
         });
-        onAudioStateChange?.(ctx.state);
         void ctx.resume(); // works if user already interacted with the page
       } catch (e) {
         console.warn("Web Audio API unavailable:", e);
@@ -216,11 +208,6 @@ export function CaraModel({
           nodes.osc.start();
 
           thereminRef.current = { ctx, ...nodes, started: true };
-
-          ctx.addEventListener("statechange", () =>
-            onAudioStateChange?.(ctx.state),
-          );
-          onAudioStateChange?.(ctx.state);
         } catch (e) {
           console.warn("Web Audio API unavailable:", e);
         }
@@ -281,7 +268,7 @@ export function CaraModel({
       canvas.removeEventListener("touchmove", onTouchMove);
       canvas.removeEventListener("touchend", onTouchEnd);
     };
-  }, [audioEnabled, gl, onAudioStateChange]);
+  }, [audioEnabled, gl]);
 
   // Cleanup on unmount
   useEffect(() => {

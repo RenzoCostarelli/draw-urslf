@@ -3,7 +3,7 @@ import { NAV_ITEMS } from "../../data/navItems";
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full flex items-center justify-between px-4 py-3">
+    <header className="fixed top-0 z-50 w-full flex items-center justify-between px-4 py-3">
       <NavLink
         to="/"
         className="text-sm text-neutral-50 tracking-tight hover:text-neutral-300 transition-colors"
