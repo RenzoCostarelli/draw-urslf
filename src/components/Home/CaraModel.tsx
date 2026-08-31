@@ -18,6 +18,7 @@ const vertexShader = /* glsl */ `
   uniform float uTime;
   uniform float uHover;
   uniform float uStrength;
+  uniform float uIntro;
 
   void main() {
 
@@ -32,8 +33,12 @@ const vertexShader = /* glsl */ `
     // Outward-propagating ripple wave
     float ripple = sin(dist * 14.0 - uTime * 5.0);
 
+    // Intro: global position-based wave that covers the whole mesh, fades to zero
+    float introWave = sin(position.y * 10.0 - uTime * 4.0) * cos(position.x * 8.0 + uTime * 2.5);
+    float introDisplace = introWave * 0.07 * uIntro;
+
     // Displace along vertex normal in object space
-    vec3 displaced = position + normal * (falloff * ripple * uStrength * uHover);
+    vec3 displaced = position + normal * (falloff * ripple * uStrength * uHover + introDisplace);
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
   }
@@ -56,6 +61,7 @@ const _material = new THREE.ShaderMaterial({
     uTime: { value: 0 },
     uHover: { value: 0 },
     uStrength: { value: 0.01 },
+    uIntro: { value: 1.0 },
   },
 });
 
@@ -73,7 +79,11 @@ type CaraModelProps = JSX.IntrinsicElements["group"] & {
   onAudioStateChange?: (state: AudioContextState | null) => void;
 };
 
-export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }: CaraModelProps) {
+export function CaraModel({
+  audioEnabled = false,
+  onAudioStateChange,
+  ...props
+}: CaraModelProps) {
   const { nodes } = useGLTF(
     "/models/home/FaceModel2.glb",
   ) as unknown as GLTFResult;
@@ -81,7 +91,14 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
   const groupRef = useRef<THREE.Group>(null);
   const hoverRef = useRef(0);
   const targetHoverRef = useRef(0);
+  const introRef = useRef(1.0);
   const { pointer, gl } = useThree();
+
+  // Reset intro animation on mount so it always plays from the start
+  useEffect(() => {
+    introRef.current = 1.0;
+    _material.uniforms.uIntro.value = 1.0;
+  }, []);
 
   const thereminRef = useRef<ThereminAudio | null>(null);
 
@@ -224,39 +241,45 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     };
 
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-    canvas.addEventListener("touchmove",  onTouchMove,  { passive: true });
-    canvas.addEventListener("touchend",   onTouchEnd,   { passive: true });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
 
     // ── Desktop unlock (document-level) ───────────────────────────────────
     // Handles the case where the desktop AudioContext starts suspended
     // (Chrome requires prior page interaction before ctx.resume() works).
     const removeUnlockListeners = () => {
-      document.removeEventListener("mousedown",   unlockDesktop);
+      document.removeEventListener("mousedown", unlockDesktop);
       document.removeEventListener("pointerdown", unlockDesktop);
-      document.removeEventListener("keydown",     unlockDesktop);
+      document.removeEventListener("keydown", unlockDesktop);
     };
     function unlockDesktop() {
       const t = thereminRef.current;
-      if (!t || t.ctx.state === "running") { removeUnlockListeners(); return; }
+      if (!t || t.ctx.state === "running") {
+        removeUnlockListeners();
+        return;
+      }
       const buf = t.ctx.createBuffer(1, 1, 22050);
       const src = t.ctx.createBufferSource();
       src.buffer = buf;
       src.connect(t.ctx.destination);
-      src.onended = () => { src.disconnect(); removeUnlockListeners(); };
+      src.onended = () => {
+        src.disconnect();
+        removeUnlockListeners();
+      };
       src.start(0);
       void t.ctx.resume();
     }
     if (!isMobile) {
-      document.addEventListener("mousedown",   unlockDesktop);
+      document.addEventListener("mousedown", unlockDesktop);
       document.addEventListener("pointerdown", unlockDesktop);
-      document.addEventListener("keydown",     unlockDesktop);
+      document.addEventListener("keydown", unlockDesktop);
     }
 
     return () => {
       removeUnlockListeners();
       canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove",  onTouchMove);
-      canvas.removeEventListener("touchend",   onTouchEnd);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
     };
   }, [audioEnabled, gl, onAudioStateChange]);
 
@@ -291,6 +314,19 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     _material.uniforms.uTime.value += delta;
     _material.uniforms.uHover.value = hoverRef.current;
 
+    // Intro animation: decay from 1 → 0 (speed=1.5 → ~2s to near-zero)
+    if (introRef.current > 0.001) {
+      introRef.current = THREE.MathUtils.lerp(
+        introRef.current,
+        0,
+        1 - Math.exp(-1.5 * delta),
+      );
+      _material.uniforms.uIntro.value = introRef.current;
+    } else if (_material.uniforms.uIntro.value !== 0) {
+      introRef.current = 0;
+      _material.uniforms.uIntro.value = 0;
+    }
+
     // Frame-rate independent smooth mouse/touch tracking
     _material.uniforms.uMouse.value.lerp(pointer, 1 - Math.exp(-12 * delta));
 
@@ -321,8 +357,7 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
         // scheduling (setTargetAtTime) when called from rAF/useFrame.
         // The LFO is connected to osc.frequency and adds vibrato on top of
         // this intrinsic value — both work independently.
-        t.osc.frequency.value +=
-          (targetFreq - t.osc.frequency.value) * smooth;
+        t.osc.frequency.value += (targetFreq - t.osc.frequency.value) * smooth;
         t.gain.gain.value += (targetVol - t.gain.gain.value) * smooth;
       } else {
         t.gain.gain.value += (0 - t.gain.gain.value) * smooth;
