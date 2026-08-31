@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import RootLayout from './layouts/RootLayout'
 import Home from './pages/Home'
 import Lab from './pages/lab/index'
 import DrawUrslf from './pages/lab/draw-urslf/index'
@@ -7,9 +8,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/lab" element={<Lab />} />
-        <Route path="/lab/draw-urslf" element={<DrawUrslf />} />
+        <Route element={<RootLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/lab" element={<Lab />} />
+          <Route path="/lab/draw-urslf" element={<DrawUrslf />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   )

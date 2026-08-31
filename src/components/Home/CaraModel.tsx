@@ -15,22 +15,6 @@ type GLTFResult = GLTF & {
   };
 };
 
-// function WireframeLines({
-//   geometry,
-//   material,
-// }: {
-//   geometry: THREE.BufferGeometry;
-//   material: LineMaterial;
-// }) {
-//   const lineSegments = useMemo(() => {
-//     const edges = new THREE.EdgesGeometry(geometry);
-//     const lineGeo = new LineSegmentsGeometry().fromEdgesGeometry(edges);
-//     return new LineSegments2(lineGeo, material);
-//   }, [geometry, material]);
-//
-//   return <primitive object={lineSegments} />;
-// }
-
 export function CaraModel(props: JSX.IntrinsicElements["group"]) {
   const { nodes } = useGLTF(
     "/models/home/FaceModel2.glb",
@@ -44,27 +28,10 @@ export function CaraModel(props: JSX.IntrinsicElements["group"]) {
     }
   });
 
-  // const { size } = useThree();
-
-  // const lineMaterial = useMemo(
-  //   () =>
-  //     new LineMaterial({
-  //       color: 0xffffff,
-  //       linewidth: 1,
-  //       resolution: new THREE.Vector2(size.width, size.height),
-  //     }),
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  //   [],
-  // );
-
-  // useEffect(() => {
-  //   lineMaterial.resolution.set(size.width, size.height);
-  // }, [lineMaterial, size]);
-
   const wireframeMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0xf3f3f3,
         wireframe: true,
       }),
     [],
