@@ -15,9 +15,9 @@ export default function Home() {
           <div className="w-full">
             <div className="flex items-center justify-between">
               <div className="flex-1"></div>
-              <p className="text-xs font-bold">
-                /laboratorio de experimentación digital
-              </p>
+              {/* <p className="text-xs tracking-wider">
+                laboratorio de experimentación digital.
+              </p> */}
             </div>
           </div>
         </div>

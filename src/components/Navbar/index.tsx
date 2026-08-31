@@ -26,7 +26,7 @@ export default function Navbar() {
         rnz0_
       </NavLink>
 
-      <nav aria-label="Navegación principal">
+      {/* <nav aria-label="Navegación principal">
         <ul className="flex items-center gap-6 list-none m-0 p-0">
           {NAV_ITEMS.map(({ label, href }) => (
             <li key={href}>
@@ -47,7 +47,7 @@ export default function Navbar() {
             </li>
           ))}
         </ul>
-      </nav>
+      </nav> */}
     </header>
   );
 }
