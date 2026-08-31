@@ -65,6 +65,7 @@ interface ThereminAudio {
   gain: GainNode;
   lfo: OscillatorNode;
   lfoGain: GainNode;
+  started: boolean; // guards against starting oscillators twice
 }
 
 type CaraModelProps = JSX.IntrinsicElements["group"] & {
@@ -104,64 +105,66 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
       return;
     }
 
-    // ── Create AudioContext (once, here) ──────────────────────────────────
-    // Desktop browsers allow this without a prior gesture if the user has
-    // already interacted anywhere on the page. Mobile browsers start it in
-    // "suspended" state; the touchstart handler below resumes it from within
-    // the user-gesture call stack, which satisfies the autoplay policy.
-    if (!thereminRef.current) {
+    // ── Audio graph builder ────────────────────────────────────────────────
+    const buildGraph = (ctx: AudioContext) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 440;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      lfo.frequency.value = 5.2;
+      lfoGain.gain.value = 7;
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      return { osc, gain, lfo, lfoGain };
+    };
+
+    // ── Two separate initialization paths ─────────────────────────────────
+    //
+    // iOS Safari REQUIRES that new AudioContext() be called inside the user
+    // gesture handler — not just ctx.resume(). When created inside touchstart
+    // the context starts in "running" state immediately and oscillators can
+    // be started right away. Any other timing leaves the context suspended
+    // permanently on iOS regardless of later resume() calls.
+    //
+    // Desktop browsers (Chrome, Firefox, Safari macOS) are more permissive:
+    // the context can be created in useEffect and resumed on first click.
+    const isMobile = navigator.maxTouchPoints > 0;
+
+    if (!isMobile && !thereminRef.current) {
+      // ── Desktop path: create now, unlock on first interaction ─────────
       try {
         const ctx = new AudioContext();
+        const nodes = buildGraph(ctx);
 
-        const osc = ctx.createOscillator();
-        osc.type = "sine";
-        osc.frequency.value = 440;
+        thereminRef.current = { ctx, ...nodes, started: false };
 
-        const gain = ctx.createGain();
-        gain.gain.value = 0;
-
-        const lfo = ctx.createOscillator();
-        const lfoGain = ctx.createGain();
-        lfo.frequency.value = 5.2;
-        lfoGain.gain.value = 7;
-
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        lfo.start();
-        osc.start();
-
-        thereminRef.current = { ctx, osc, gain, lfo, lfoGain };
-        ctx.addEventListener("statechange", () => onAudioStateChange?.(ctx.state));
+        ctx.addEventListener("statechange", () => {
+          const t = thereminRef.current;
+          if (t && ctx.state === "running" && !t.started) {
+            t.started = true;
+            t.lfo.start();
+            t.osc.start();
+          }
+          onAudioStateChange?.(ctx.state);
+        });
         onAudioStateChange?.(ctx.state);
-
-        // Desktop: try to resume immediately (no-op if still suspended)
-        void ctx.resume();
+        void ctx.resume(); // works if user already interacted with the page
       } catch (e) {
         console.warn("Web Audio API unavailable:", e);
         return;
       }
     }
 
-    const { ctx } = thereminRef.current;
-
-    // ── Mobile resume (called from touchstart – a valid user gesture) ─────
-    // resume() is what the autoplay policy actually requires. The silent
-    // buffer is extra insurance for older iOS Safari where resume() alone
-    // sometimes isn't enough to flip state to "running".
-    const resumeFromGesture = () => {
-      if (ctx.state === "running") return;
-      const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start();
-      void ctx.resume();
-    };
-
-    // ── Touch position tracking (bypasses R3F hit-testing) ────────────────
+    // ── Touch position helpers ─────────────────────────────────────────────
     const toNDC = (touch: Touch) => {
       const r = canvas.getBoundingClientRect();
       return {
@@ -171,10 +174,48 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      resumeFromGesture(); // ctx already exists; just needs resuming on mobile
+      if (!thereminRef.current) {
+        // ── Mobile path: create AudioContext inside the user gesture ──────
+        // On iOS Safari, new AudioContext() called here starts in "running"
+        // state immediately. Oscillators can be started right after.
+        //
+        // iOS routes Web Audio through the "ringer" channel by default, which
+        // is muted by the physical silent switch and uses the ringer volume.
+        // Playing an <audio> element inside the same gesture switches iOS to
+        // the "playback" audio session (media volume, not affected by silent).
+        try {
+          // Switch iOS audio session to "playback" before creating context
+          const probe = new window.Audio();
+          probe.src =
+            "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+          probe.volume = 0.001;
+          probe.play().catch(() => {});
+
+          const ctx = new AudioContext();
+          const nodes = buildGraph(ctx);
+
+          // Start oscillators immediately — context IS running at this point
+          nodes.lfo.start();
+          nodes.osc.start();
+
+          thereminRef.current = { ctx, ...nodes, started: true };
+
+          ctx.addEventListener("statechange", () =>
+            onAudioStateChange?.(ctx.state),
+          );
+          onAudioStateChange?.(ctx.state);
+        } catch (e) {
+          console.warn("Web Audio API unavailable:", e);
+        }
+      } else if (thereminRef.current.ctx.state === "suspended") {
+        // Re-resume if context was suspended (e.g. app went to background)
+        void thereminRef.current.ctx.resume();
+      }
+
       touchActiveRef.current = true;
       touchPosRef.current = toNDC(e.touches[0]);
     };
+
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
     };
@@ -183,13 +224,39 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     };
 
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
-    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
+    canvas.addEventListener("touchmove",  onTouchMove,  { passive: true });
+    canvas.addEventListener("touchend",   onTouchEnd,   { passive: true });
+
+    // ── Desktop unlock (document-level) ───────────────────────────────────
+    // Handles the case where the desktop AudioContext starts suspended
+    // (Chrome requires prior page interaction before ctx.resume() works).
+    const removeUnlockListeners = () => {
+      document.removeEventListener("mousedown",   unlockDesktop);
+      document.removeEventListener("pointerdown", unlockDesktop);
+      document.removeEventListener("keydown",     unlockDesktop);
+    };
+    function unlockDesktop() {
+      const t = thereminRef.current;
+      if (!t || t.ctx.state === "running") { removeUnlockListeners(); return; }
+      const buf = t.ctx.createBuffer(1, 1, 22050);
+      const src = t.ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(t.ctx.destination);
+      src.onended = () => { src.disconnect(); removeUnlockListeners(); };
+      src.start(0);
+      void t.ctx.resume();
+    }
+    if (!isMobile) {
+      document.addEventListener("mousedown",   unlockDesktop);
+      document.addEventListener("pointerdown", unlockDesktop);
+      document.addEventListener("keydown",     unlockDesktop);
+    }
 
     return () => {
+      removeUnlockListeners();
       canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchmove",  onTouchMove);
+      canvas.removeEventListener("touchend",   onTouchEnd);
     };
   }, [audioEnabled, gl, onAudioStateChange]);
 
@@ -198,9 +265,11 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
     return () => {
       const t = thereminRef.current;
       if (t) {
-        t.gain.gain.setValueAtTime(0, t.ctx.currentTime);
-        t.osc.stop();
-        t.lfo.stop();
+        if (t.started) {
+          // stop() throws if the oscillator was never started
+          t.osc.stop();
+          t.lfo.stop();
+        }
         t.ctx.close();
         thereminRef.current = null;
       }
@@ -235,21 +304,28 @@ export function CaraModel({ audioEnabled = false, onAudioStateChange, ...props }
       const ax = isTouching ? touchPosRef.current.x : pointer.x;
       const ay = isTouching ? touchPosRef.current.y : pointer.y;
 
+      // Smoothing factor – frame-rate independent, same pattern as hoverRef
+      const smooth = 1 - Math.exp(-8 * delta);
+
       if (isActive) {
         // Logarithmic pitch: bottom (-1) → 120 Hz, top (1) → 1400 Hz
         const minFreq = 120;
         const maxFreq = 1400;
         const normY = (ay + 1) / 2;
-        const freq = minFreq * Math.pow(maxFreq / minFreq, normY);
+        const targetFreq = minFreq * Math.pow(maxFreq / minFreq, normY);
 
         // Linear volume: left (-1) → 0.05, right (1) → 0.45
-        // Minimum 0.05 so mobile users always hear something regardless of X
-        const vol = THREE.MathUtils.mapLinear(ax, -1, 1, 0.05, 0.45);
+        const targetVol = THREE.MathUtils.mapLinear(ax, -1, 1, 0.05, 0.45);
 
-        t.osc.frequency.setTargetAtTime(freq, t.ctx.currentTime, 0.04);
-        t.gain.gain.setTargetAtTime(vol, t.ctx.currentTime, 0.04);
+        // Direct .value assignment avoids iOS WebKit bugs with AudioParam
+        // scheduling (setTargetAtTime) when called from rAF/useFrame.
+        // The LFO is connected to osc.frequency and adds vibrato on top of
+        // this intrinsic value — both work independently.
+        t.osc.frequency.value +=
+          (targetFreq - t.osc.frequency.value) * smooth;
+        t.gain.gain.value += (targetVol - t.gain.gain.value) * smooth;
       } else {
-        t.gain.gain.setTargetAtTime(0, t.ctx.currentTime, 0.15);
+        t.gain.gain.value += (0 - t.gain.gain.value) * smooth;
       }
     }
   });
