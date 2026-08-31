@@ -198,15 +198,15 @@ export default function DrawUrslf() {
 
   return (
     <div className="relative w-full h-full bg-neutral-900 flex-1">
-      <title>draw urslf | lab</title>
+      <title>draw-urslf | *.lab /rnz0</title>
       <meta
         name="description"
-        content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión."
+        content="Proyecto de investigación utilizando mediapipe para detección de gestos, rostro y manos."
       />
-      <meta property="og:title" content="draw urslf | lab" />
+      <meta property="og:title" content="*.lab /rnz0" />
       <meta
         property="og:description"
-        content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión."
+        content="Proyecto de investigación utilizando mediapipe para detección de gestos, rostro y manos."
       />
       <meta property="og:type" content="website" />
       {/* Three.js: webcam de fondo + plano de dibujo */}
@@ -287,26 +287,26 @@ export default function DrawUrslf() {
       )}
       <div className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none">
         <div className="pointer-events-auto">
-        <Toolbar
-          brushSize={brushSize}
-          color={color}
-          tool={tool}
-          isRecording={isRecording}
-          isTranscoding={isTranscoding}
-          recordingSeconds={recordingSeconds}
-          maxRecordingSeconds={MAX_REC_SECS}
-          onBrushSizeChange={setBrushSize}
-          onColorChange={setColor}
-          onToolChange={setTool}
-          isLocked={isLocked}
-          onClear={() => drawingRef.current?.clear()}
-          onRecordToggle={handleRecordToggle}
-          onLockToggle={() => setIsLocked((l) => !l)}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={() => drawingRef.current?.undo()}
-          onRedo={() => drawingRef.current?.redo()}
-        />
+          <Toolbar
+            brushSize={brushSize}
+            color={color}
+            tool={tool}
+            isRecording={isRecording}
+            isTranscoding={isTranscoding}
+            recordingSeconds={recordingSeconds}
+            maxRecordingSeconds={MAX_REC_SECS}
+            onBrushSizeChange={setBrushSize}
+            onColorChange={setColor}
+            onToolChange={setTool}
+            isLocked={isLocked}
+            onClear={() => drawingRef.current?.clear()}
+            onRecordToggle={handleRecordToggle}
+            onLockToggle={() => setIsLocked((l) => !l)}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={() => drawingRef.current?.undo()}
+            onRedo={() => drawingRef.current?.redo()}
+          />
         </div>
       </div>
     </div>
