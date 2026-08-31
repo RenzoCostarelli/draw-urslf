@@ -1,18 +1,8 @@
 import { NavLink } from "react-router-dom";
 
-interface NavItem {
-  label: string;
-  href: string;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "home", href: "/" },
-  { label: "lab", href: "/lab" },
-];
-
 export default function Navbar() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-50 w-full flex items-center justify-between px-4 py-3">
       <NavLink
         to="/"
         className="text-sm text-neutral-50 tracking-tight hover:text-neutral-300 transition-colors"

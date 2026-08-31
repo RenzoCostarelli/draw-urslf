@@ -79,7 +79,7 @@ export default function Toolbar({
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2">
       {/* ── Panel flotante ──────────────────────────────── */}
       {panel && (
         <div className={PANEL_CLASSES}>

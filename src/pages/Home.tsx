@@ -11,7 +11,7 @@ export default function Home() {
         content="Lab de experimentación digital"
       />
       <div className="relative h-svh w-svw">
-        <div className="p-4 absolute w-full h-full  flex items-end justify-end">
+        <div className="p-4 absolute w-full h-full flex items-end justify-end">
           <div className="w-full">
             <div className="flex items-center justify-between">
               <div className="flex-1"></div>

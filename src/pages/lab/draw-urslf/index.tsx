@@ -5,7 +5,10 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import WebcamPlane from "../../../components/WebcamPlane";
 import DrawingPlane from "../../../components/DrawingPlane";
-import type { DrawingCanvasHandle, MPStatus } from "../../../components/DrawingPlane";
+import type {
+  DrawingCanvasHandle,
+  MPStatus,
+} from "../../../components/DrawingPlane";
 import Toolbar from "../../../components/Toolbar";
 import { useWebcam } from "../../../hooks/useWebcam";
 import type {
@@ -53,7 +56,9 @@ export default function DrawUrslf() {
   const [mpStatus, setMpStatus] = useState<MPStatus>("loading");
 
   const [showFlash, setShowFlash] = useState(false);
-  const [pinchDbg, setPinchDbg] = useState<{ label: string; dist: number; active: boolean }[]>([]);
+  const [pinchDbg, setPinchDbg] = useState<
+    { label: string; dist: number; active: boolean }[]
+  >([]);
 
   const videoRef = useWebcam();
   const drawingRef = useRef<DrawingCanvasHandle>(null);
@@ -135,16 +140,25 @@ export default function DrawUrslf() {
         await ffmpeg.writeFile("input.webm", await fetchFile(blob));
 
         const exitCode = await ffmpeg.exec([
-          "-i", "input.webm",
+          "-i",
+          "input.webm",
           "-an",
-          "-vf", "scale=if(gt(iw,1280),1280,iw):-2",
-          "-c:v", "libx264",
-          "-preset", "fast",
-          "-crf", "30",
-          "-maxrate", "800k",
-          "-bufsize", "1600k",
-          "-pix_fmt", "yuv420p",
-          "-movflags", "+faststart",
+          "-vf",
+          "scale=if(gt(iw,1280),1280,iw):-2",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "fast",
+          "-crf",
+          "30",
+          "-maxrate",
+          "800k",
+          "-bufsize",
+          "1600k",
+          "-pix_fmt",
+          "yuv420p",
+          "-movflags",
+          "+faststart",
           "output.mp4",
         ]);
 
@@ -183,14 +197,20 @@ export default function DrawUrslf() {
   }, [isRecording, loadFFmpeg]);
 
   return (
-    <div className="relative w-full h-full bg-neutral-900">
+    <div className="relative w-full h-full bg-neutral-900 flex-1">
       <title>draw urslf | lab</title>
-      <meta name="description" content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión." />
+      <meta
+        name="description"
+        content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión."
+      />
       <meta property="og:title" content="draw urslf | lab" />
-      <meta property="og:description" content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión." />
+      <meta
+        property="og:description"
+        content="Dibuja sobre tu cámara web usando gestos de mano. Pinta, borra y graba tu sesión."
+      />
       <meta property="og:type" content="website" />
       {/* Three.js: webcam de fondo + plano de dibujo */}
-      <div ref={threeContainerRef} className="absolute inset-0">
+      <div ref={threeContainerRef} className="absolute h-svh w-svw">
         <Canvas
           camera={{ position: [0, 0, 6], fov: 60 }}
           className="w-full h-full"
@@ -213,7 +233,10 @@ export default function DrawUrslf() {
             isLocked={isLocked}
             onMpStatusChange={setMpStatus}
             onHistoryChange={handleHistoryChange}
-            onClearFlash={() => { setShowFlash(true); setTimeout(() => setShowFlash(false), 900); }}
+            onClearFlash={() => {
+              setShowFlash(true);
+              setTimeout(() => setShowFlash(false), 900);
+            }}
             onPinchDebug={import.meta.env.DEV ? setPinchDbg : undefined}
           />
         </Canvas>
@@ -221,7 +244,7 @@ export default function DrawUrslf() {
 
       {/* Flash de borrado */}
       {showFlash && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
           <span className="text-white text-5xl font-bold drop-shadow-lg animate-fade-out select-none">
             ¡Borrado!
           </span>
@@ -232,8 +255,12 @@ export default function DrawUrslf() {
       {import.meta.env.DEV && pinchDbg.length > 0 && (
         <div className="absolute top-3 left-3 bg-black/55 rounded px-3 py-2 text-xs font-mono text-white pointer-events-none select-none">
           {pinchDbg.map((d) => (
-            <div key={d.label} style={{ color: d.active ? "#44ff88" : "white" }}>
-              {d.label[0]}: {d.dist.toFixed(3)}{d.active ? " ●" : ""}
+            <div
+              key={d.label}
+              style={{ color: d.active ? "#44ff88" : "white" }}
+            >
+              {d.label[0]}: {d.dist.toFixed(3)}
+              {d.active ? " ●" : ""}
             </div>
           ))}
           <div className="text-white/45 mt-1">
@@ -258,27 +285,30 @@ export default function DrawUrslf() {
           </div>
         </div>
       )}
-
-      <Toolbar
-        brushSize={brushSize}
-        color={color}
-        tool={tool}
-        isRecording={isRecording}
-        isTranscoding={isTranscoding}
-        recordingSeconds={recordingSeconds}
-        maxRecordingSeconds={MAX_REC_SECS}
-        onBrushSizeChange={setBrushSize}
-        onColorChange={setColor}
-        onToolChange={setTool}
-        isLocked={isLocked}
-        onClear={() => drawingRef.current?.clear()}
-        onRecordToggle={handleRecordToggle}
-        onLockToggle={() => setIsLocked((l) => !l)}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={() => drawingRef.current?.undo()}
-        onRedo={() => drawingRef.current?.redo()}
-      />
+      <div className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none">
+        <div className="pointer-events-auto">
+        <Toolbar
+          brushSize={brushSize}
+          color={color}
+          tool={tool}
+          isRecording={isRecording}
+          isTranscoding={isTranscoding}
+          recordingSeconds={recordingSeconds}
+          maxRecordingSeconds={MAX_REC_SECS}
+          onBrushSizeChange={setBrushSize}
+          onColorChange={setColor}
+          onToolChange={setTool}
+          isLocked={isLocked}
+          onClear={() => drawingRef.current?.clear()}
+          onRecordToggle={handleRecordToggle}
+          onLockToggle={() => setIsLocked((l) => !l)}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={() => drawingRef.current?.undo()}
+          onRedo={() => drawingRef.current?.redo()}
+        />
+        </div>
+      </div>
     </div>
   );
 }

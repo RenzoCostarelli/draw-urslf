@@ -103,7 +103,7 @@ export function useTrackingFrame({
     } else if (now - lastMpTimestamp.current >= mpIntervalRef.current) {
       const t0 = performance.now();
       results = handLandmarker.detectForVideo(video, now);
-      mpIntervalRef.current = Math.max(MP_THROTTLE_MS, (performance.now() - t0) * 2);
+      mpIntervalRef.current = Math.max(MP_THROTTLE_MS, (performance.now() - t0) * 1.2);
       lastMpTimestamp.current = now;
       lastHandResults.current = results;
     } else {
@@ -271,7 +271,7 @@ export function useTrackingFrame({
       if (now - lastFaceMpTimestamp.current >= faceIntervalRef.current) {
         const t0 = performance.now();
         faceResults = faceLandmarker.detectForVideo(video, now);
-        faceIntervalRef.current = Math.max(MP_THROTTLE_MS, (performance.now() - t0) * 2);
+        faceIntervalRef.current = Math.max(MP_THROTTLE_MS, (performance.now() - t0) * 1.2);
         lastFaceMpTimestamp.current = now;
         lastFaceResults.current = faceResults;
       } else {

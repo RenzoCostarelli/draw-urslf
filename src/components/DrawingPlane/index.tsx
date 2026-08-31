@@ -2,7 +2,6 @@ import {
   useRef,
   useEffect,
   useMemo,
-  useCallback,
   forwardRef,
   useImperativeHandle,
   memo,
@@ -89,6 +88,10 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
     }, [isLocked]);
 
     useEffect(() => {
+      gl.domElement.style.touchAction = "none";
+    }, [gl]);
+
+    useEffect(() => {
       gl.domElement.style.cursor = isLocked ? "default" : "crosshair";
     }, [isLocked, gl]);
 
@@ -160,7 +163,6 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={stopPointer}
-            onPointerLeave={stopPointer}
             onPointerCancel={stopPointer}
           >
             <planeGeometry args={[planeW, planeH]} />

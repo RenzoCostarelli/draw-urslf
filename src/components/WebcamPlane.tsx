@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useEffect, useRef, useCallback, useState } from 'react'
+import { useThree, useStore } from '@react-three/fiber'
 import * as THREE from 'three'
 
 interface WebcamPlaneProps {
@@ -7,8 +7,13 @@ interface WebcamPlaneProps {
 }
 
 export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
-  const { scene, size } = useThree()
+  const { size } = useThree()
+  const store = useStore()
   const textureRef = useRef<THREE.VideoTexture | null>(null)
+  // textureReady actúa como señal entre el effect de creación y el de aspect.
+  // Es necesario para el caso asíncrono: cuando el video aún no está listo al
+  // montar, el canplay crea la textura más tarde y hay que disparar applyAspect.
+  const [textureReady, setTextureReady] = useState(false)
 
   // Ajusta el UV mapping del background para "object-fit: cover" + espejo horizontal.
   // Se ejecuta al crear la textura y cada vez que cambia el tamaño del canvas.
@@ -42,6 +47,9 @@ export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
   }, [size, videoRef])
 
   useEffect(() => {
+    // Acceder a scene imperativamenete desde el store evita capturar una
+    // variable de render, que es lo que rechaza el React Compiler.
+    const { scene } = store.getState()
     const video = videoRef.current
     if (!video) return
 
@@ -50,8 +58,8 @@ export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
       const texture = new THREE.VideoTexture(video)
       texture.colorSpace = THREE.SRGBColorSpace
       textureRef.current = texture
-      applyAspect()
       scene.background = texture
+      setTextureReady(true)
     }
 
     if (video.readyState >= 2) {
@@ -64,13 +72,15 @@ export default function WebcamPlane({ videoRef }: WebcamPlaneProps) {
       textureRef.current?.dispose()
       textureRef.current = null
       scene.background = null
+      setTextureReady(false)
     }
-  }, [scene, videoRef]) // no incluir applyAspect para no recrear la textura al cambiar tamaño
+  }, [store, videoRef])
 
-  // Re-aplicar aspect cada vez que cambia el tamaño del canvas o el video
+  // Re-aplicar aspect cuando la textura está lista o cuando cambia el tamaño del canvas.
+  // textureReady en deps asegura que esto se ejecute también tras el caso asíncrono (canplay).
   useEffect(() => {
-    applyAspect()
-  }, [applyAspect])
+    if (textureReady) applyAspect()
+  }, [applyAspect, textureReady])
 
   return null
 }

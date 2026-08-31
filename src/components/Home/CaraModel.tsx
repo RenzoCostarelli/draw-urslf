@@ -12,13 +12,15 @@ type GLTFResult = GLTF & {
 };
 
 const vertexShader = /* glsl */ `
+  precision highp float;
+
   uniform vec2 uMouse;
   uniform float uTime;
   uniform float uHover;
   uniform float uStrength;
 
   void main() {
-    // Undisplaced clip-space position → NDC for screen-space cursor distance
+    
     vec4 clipPos = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     vec2 ndc = clipPos.xy / clipPos.w;
 
@@ -95,6 +97,12 @@ export function CaraModel(props: JSX.IntrinsicElements["group"]) {
           targetHoverRef.current = 1;
         }}
         onPointerLeave={() => {
+          targetHoverRef.current = 0;
+        }}
+        onPointerDown={() => {
+          targetHoverRef.current = 1;
+        }}
+        onPointerUp={() => {
           targetHoverRef.current = 0;
         }}
       />
