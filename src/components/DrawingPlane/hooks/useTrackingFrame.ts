@@ -156,13 +156,20 @@ export function useTrackingFrame({
       }
       const ps = handPinchState.current.get(handLabel)!;
 
+      // landmarks 2D (normalizados) → sólo para posición de dibujo en canvas
       const thumb = lm[4], index = lm[8];
-      const wrist = lm[0], middleMCP = lm[9];
+
+      // worldLandmarks: coordenadas 3D métricas (metros), invariantes a distancia/orientación de cámara.
+      // Usar estos en lugar de landmarks 2D evita el foreshortening del vector muñeca→MCP
+      // cuando la mano apunta hacia la cámara frontal (causa principal del pinch que no disparaba).
+      const wlm = results.worldLandmarks[h_i] ?? lm;
+      const wThumb = wlm[4], wIndex = wlm[8];
+      const wWrist = wlm[0], wMiddleMCP = wlm[9];
       const handScale = Math.sqrt(
-        (wrist.x - middleMCP.x) ** 2 + (wrist.y - middleMCP.y) ** 2,
+        (wWrist.x - wMiddleMCP.x) ** 2 + (wWrist.y - wMiddleMCP.y) ** 2 + (wWrist.z - wMiddleMCP.z) ** 2,
       );
       const rawDist = Math.sqrt(
-        (thumb.x - index.x) ** 2 + (thumb.y - index.y) ** 2,
+        (wThumb.x - wIndex.x) ** 2 + (wThumb.y - wIndex.y) ** 2 + (wThumb.z - wIndex.z) ** 2,
       );
       const dist = handScale > 0.001 ? rawDist / handScale : rawDist;
 
