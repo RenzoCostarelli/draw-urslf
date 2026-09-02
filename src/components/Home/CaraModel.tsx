@@ -305,10 +305,13 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
       groupRef.current.rotation.y += delta * 0.4;
     }
 
-    // Frame-rate independent smooth hover (speed=8 → ~99% in ~0.6s)
+    // Frame-rate independent smooth hover (speed=8 → ~99% in ~0.6s).
+    // On Android Chrome, R3F fires onPointerLeave mid-drag (raycasting loses
+    // the mesh), dropping uHover to 0. Native touch state takes priority.
+    const targetHover = touchActiveRef.current ? 1 : targetHoverRef.current;
     hoverRef.current = THREE.MathUtils.lerp(
       hoverRef.current,
-      targetHoverRef.current,
+      targetHover,
       1 - Math.exp(-8 * delta),
     );
 
