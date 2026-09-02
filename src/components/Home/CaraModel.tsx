@@ -116,6 +116,7 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
     };
     const onStart = (e: TouchEvent) => {
       touchActiveRef.current = true;
+      targetHoverRef.current = 1;
       if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
     };
     const onMove = (e: TouchEvent) => {
@@ -123,14 +124,17 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
     };
     const onEnd = () => {
       touchActiveRef.current = false;
+      targetHoverRef.current = 0;
     };
     canvas.addEventListener("touchstart", onStart, { passive: true });
     canvas.addEventListener("touchmove", onMove, { passive: true });
     canvas.addEventListener("touchend", onEnd, { passive: true });
+    canvas.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
       canvas.removeEventListener("touchstart", onStart);
       canvas.removeEventListener("touchmove", onMove);
       canvas.removeEventListener("touchend", onEnd);
+      canvas.removeEventListener("touchcancel", onEnd);
     };
   }, [gl]);
 
