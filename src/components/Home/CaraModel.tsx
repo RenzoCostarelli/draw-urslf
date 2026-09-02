@@ -101,6 +101,38 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
   // anywhere on the canvas, not only when touching the 3D mesh
   const touchActiveRef = useRef(false);
   const touchPosRef = useRef({ x: 0, y: 0 });
+  const touchVecRef = useRef(new THREE.Vector2(0, 0));
+
+  // Always-running effect: track native touch position so displacement works
+  // on Chrome Android (where R3F's `pointer` doesn't update during drag).
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const toNDC = (touch: Touch) => {
+      const r = canvas.getBoundingClientRect();
+      return {
+        x: ((touch.clientX - r.left) / r.width) * 2 - 1,
+        y: -((touch.clientY - r.top) / r.height) * 2 + 1,
+      };
+    };
+    const onStart = (e: TouchEvent) => {
+      touchActiveRef.current = true;
+      if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
+    };
+    const onEnd = () => {
+      touchActiveRef.current = false;
+    };
+    canvas.addEventListener("touchstart", onStart, { passive: true });
+    canvas.addEventListener("touchmove", onMove, { passive: true });
+    canvas.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      canvas.removeEventListener("touchstart", onStart);
+      canvas.removeEventListener("touchmove", onMove);
+      canvas.removeEventListener("touchend", onEnd);
+    };
+  }, [gl]);
 
   // Initialize or suspend audio when audioEnabled changes
   useEffect(() => {
@@ -173,16 +205,7 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
       }
     }
 
-    // ── Touch position helpers ─────────────────────────────────────────────
-    const toNDC = (touch: Touch) => {
-      const r = canvas.getBoundingClientRect();
-      return {
-        x: ((touch.clientX - r.left) / r.width) * 2 - 1,
-        y: -((touch.clientY - r.top) / r.height) * 2 + 1,
-      };
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
+    const onTouchStart = () => {
       if (!thereminRef.current) {
         // ── Mobile path: create AudioContext inside the user gesture ──────
         // On iOS Safari, new AudioContext() called here starts in "running"
@@ -216,20 +239,9 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
         void thereminRef.current.ctx.resume();
       }
 
-      touchActiveRef.current = true;
-      touchPosRef.current = toNDC(e.touches[0]);
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) touchPosRef.current = toNDC(e.touches[0]);
-    };
-    const onTouchEnd = () => {
-      touchActiveRef.current = false;
     };
 
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
-    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
 
     // ── Desktop unlock (document-level) ───────────────────────────────────
     // Handles the case where the desktop AudioContext starts suspended
@@ -265,8 +277,6 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
     return () => {
       removeUnlockListeners();
       canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
     };
   }, [audioEnabled, gl]);
 
@@ -314,8 +324,13 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
       _material.uniforms.uIntro.value = 0;
     }
 
-    // Frame-rate independent smooth mouse/touch tracking
-    _material.uniforms.uMouse.value.lerp(pointer, 1 - Math.exp(-12 * delta));
+    // Frame-rate independent smooth mouse/touch tracking.
+    // On Chrome Android, R3F's `pointer` doesn't update during drag, so use
+    // native touch coordinates when a touch is active.
+    const targetVec = touchActiveRef.current
+      ? touchVecRef.current.set(touchPosRef.current.x, touchPosRef.current.y)
+      : pointer;
+    _material.uniforms.uMouse.value.lerp(targetVec, 1 - Math.exp(-12 * delta));
 
     // ── Theremin audio update ──────────────────────────────────────────────
     const t = thereminRef.current;
