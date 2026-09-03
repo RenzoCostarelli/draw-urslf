@@ -24,7 +24,7 @@ export const labProjects: LabProject[] = [
   {
     id: "draw-urslf",
     title: "draw-urslf",
-    description: "Dibuja usando tus manos con la cámara web.",
+    description: "MediaPipe | detección de gestos.",
     href: "/lab/draw-urslf",
   },
 ];

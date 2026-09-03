@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import {
-  HandLandmarker,
-  FaceLandmarker,
-  FilesetResolver,
-} from "@mediapipe/tasks-vision";
+import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 import type { MPStatus } from "../types";
+
+const MP_VERSION = "1.0.1";
+const WASM_BASE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
+const HAND_MODEL_URL =
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task";
 
 interface UseMediaPipeParams {
   videoRef?: React.RefObject<HTMLVideoElement | null>;
@@ -14,7 +15,6 @@ interface UseMediaPipeParams {
 export function useMediaPipe({ videoRef, onStatusChange }: UseMediaPipeParams) {
   const [mpStatus, setMpStatus] = useState<MPStatus>("loading");
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
-  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
   const mpReadyRef = useRef(false);
 
   const updateStatus = useCallback(
@@ -40,14 +40,14 @@ export function useMediaPipe({ videoRef, onStatusChange }: UseMediaPipeParams) {
       try {
         updateStatus("loading");
         const vision = await withTimeout(
-          FilesetResolver.forVisionTasks("/mediapipe"),
+          FilesetResolver.forVisionTasks(WASM_BASE_URL),
           15000,
         );
         if (destroyed) return;
 
         const createHand = (delegate: "GPU" | "CPU") =>
           HandLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate },
+            baseOptions: { modelAssetPath: HAND_MODEL_URL, delegate },
             runningMode: "VIDEO",
             numHands: 2,
           });
@@ -60,33 +60,8 @@ export function useMediaPipe({ videoRef, onStatusChange }: UseMediaPipeParams) {
         if (destroyed) { hl.close(); return; }
         handLandmarkerRef.current = hl;
 
-        // HandLandmarker listo → activar dibujo inmediatamente
-        if (!destroyed) {
-          mpReadyRef.current = true;
-          updateStatus("ready");
-        }
-
-        // Cargar FaceLandmarker en background (necesario solo para modo locked/3D)
-        const createFace = (delegate: "GPU" | "CPU") =>
-          FaceLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: "/models/face_landmarker.task", delegate },
-            runningMode: "VIDEO",
-            numFaces: 1,
-          });
-        (async () => {
-          try {
-            let fl: FaceLandmarker;
-            try {
-              fl = await withTimeout(createFace("GPU"), 20000);
-            } catch {
-              fl = await withTimeout(createFace("CPU"), 20000);
-            }
-            if (!destroyed) faceLandmarkerRef.current = fl;
-            else fl.close();
-          } catch (e) {
-            console.warn("FaceLandmarker no disponible:", e);
-          }
-        })();
+        mpReadyRef.current = true;
+        updateStatus("ready");
       } catch (err) {
         if (!destroyed) {
           console.error("MediaPipe init error:", err);
@@ -101,10 +76,8 @@ export function useMediaPipe({ videoRef, onStatusChange }: UseMediaPipeParams) {
       mpReadyRef.current = false;
       handLandmarkerRef.current?.close();
       handLandmarkerRef.current = null;
-      faceLandmarkerRef.current?.close();
-      faceLandmarkerRef.current = null;
     };
   }, [videoRef, updateStatus]);
 
-  return { handLandmarkerRef, faceLandmarkerRef, mpReadyRef, mpStatus };
+  return { handLandmarkerRef, mpReadyRef, mpStatus };
 }

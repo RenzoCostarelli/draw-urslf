@@ -6,17 +6,11 @@ interface ToolbarProps {
   brushSize: BrushSize;
   color: DrawColor;
   tool: DrawTool;
-  isRecording: boolean;
-  isTranscoding: boolean;
-  recordingSeconds: number;
-  maxRecordingSeconds: number;
   onBrushSizeChange: (size: BrushSize) => void;
   onColorChange: (color: DrawColor) => void;
   onToolChange: (tool: DrawTool) => void;
   isLocked: boolean;
   onClear: () => void;
-  // onCapture: () => void;
-  onRecordToggle: () => void;
   onLockToggle: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -42,16 +36,11 @@ export default function Toolbar({
   brushSize,
   color,
   tool,
-  isRecording,
-  isTranscoding,
-  recordingSeconds,
-  maxRecordingSeconds,
   onBrushSizeChange,
   onColorChange,
   onToolChange,
   isLocked,
   onClear,
-  onRecordToggle,
   onLockToggle,
   canUndo,
   canRedo,
@@ -165,98 +154,6 @@ export default function Toolbar({
             <path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
           </svg>
         </button>
-
-        {/* Captura foto */}
-        {/* <button
-          onClick={onCapture}
-          title="Tomar foto"
-          className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all"
-        >
-          <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
-            <path d="M12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4zm0-8.4A5.2 5.2 0 1 0 12 17.2 5.2 5.2 0 0 0 12 6.8zM9 3l-1.83 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9z" />
-          </svg>
-        </button> */}
-
-        {/* Grabar video */}
-        {/* <button
-          onClick={onRecordToggle}
-          disabled={isTranscoding}
-          title={
-            isTranscoding
-              ? "Convirtiendo a MP4…"
-              : isRecording
-                ? "Detener grabación"
-                : "Grabar video"
-          }
-          className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-            isTranscoding
-              ? "bg-yellow-500/50 ring-2 ring-yellow-400 cursor-not-allowed"
-              : isRecording
-                ? "bg-red-500/70 ring-2 ring-red-400"
-                : "bg-white/10 hover:bg-white/20"
-          }`}
-        >
-          {isTranscoding ? (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2.5"
-              width="22"
-              height="22"
-              className="animate-spin"
-            >
-              <path d="M12 3a9 9 0 1 0 9 9" strokeLinecap="round" />
-            </svg>
-          ) : isRecording ? (
-            <>
-             
-              <svg
-                viewBox="0 0 44 44"
-                width="44"
-                height="44"
-                className="absolute inset-0"
-              >
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="20"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="3"
-                  strokeOpacity="0.3"
-                />
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="20"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="3"
-                  strokeDasharray={`${125.7 * (1 - recordingSeconds / maxRecordingSeconds)} 125.7`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 22 22)"
-                  style={{ transition: "stroke-dasharray 0.9s linear" }}
-                />
-              </svg>
-              <span className="text-white text-xs font-bold z-10">
-                {maxRecordingSeconds - recordingSeconds}s
-              </span>
-            </>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="white" width="22" height="22">
-              <circle cx="12" cy="12" r="5" fill="#ef4444" />
-              <circle
-                cx="12"
-                cy="12"
-                r="9"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.5"
-              />
-            </svg>
-          )}
-        </button> */}
 
         {/* Candado */}
         <button

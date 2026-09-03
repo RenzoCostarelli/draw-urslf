@@ -12,8 +12,10 @@ import { useDrawingCanvas } from "./hooks/useDrawingCanvas";
 import { useDrawingHistory } from "./hooks/useDrawingHistory";
 import { usePointerHandlers } from "./hooks/usePointerHandlers";
 import { useMediaPipe } from "./hooks/useMediaPipe";
-import { useTrackingFrame } from "./hooks/useTrackingFrame";
+import { useHandTracking } from "./hooks/useHandTracking";
 import { useDevOverlay } from "./hooks/useDevOverlay";
+import HandSkeleton from "./HandSkeleton";
+import type { HandSkeletonHandle } from "./HandSkeleton";
 import type { DrawingCanvasHandle, DrawingPlaneProps } from "./types";
 import type { BrushSize, DrawColor, DrawTool } from "../../constants/drawing";
 
@@ -30,7 +32,6 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       onMpStatusChange,
       onHistoryChange,
       onClearFlash,
-      onPinchDebug,
     },
     ref,
   ) {
@@ -49,41 +50,23 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
     // ── Refs de escena ────────────────────────────────────────────────────────
     const groupRef = useRef<THREE.Group>(null);
     const meshRef = useRef<THREE.Mesh>(null);
-
-    // 4 dots: 2 manos × 2 dedos (pulgar + índice)
-    const dotMeshRefs = [
-      useRef<THREE.Mesh>(null),
-      useRef<THREE.Mesh>(null),
-      useRef<THREE.Mesh>(null),
-      useRef<THREE.Mesh>(null),
-    ];
-    const pinchMeshRef = useRef<THREE.Mesh>(null);
+    const skeletonRef = useRef<HandSkeletonHandle>(null);
 
     // ── Sincronización de props via refs ──────────────────────────────────────
     const brushSizeRef = useRef<BrushSize>(brushSize);
     const colorRef = useRef<DrawColor>(color);
     const toolRef = useRef<DrawTool>(tool);
     const isLockedRef = useRef(isLocked);
-    const lockStateRef = useRef<{
-      noseNX: number;
-      noseNY: number;
-      angle: number;
-      yaw: number;
-      pitch: number;
-    } | null>(null);
 
     useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
     useEffect(() => { colorRef.current = color; }, [color]);
     useEffect(() => { toolRef.current = tool; }, [tool]);
     useEffect(() => {
       isLockedRef.current = isLocked;
-      if (!isLocked) {
-        lockStateRef.current = null;
-        if (groupRef.current && meshRef.current) {
-          groupRef.current.position.set(0, 0, 0);
-          groupRef.current.rotation.set(0, 0, 0);
-          meshRef.current.position.set(0, 0, 0);
-        }
+      if (!isLocked && groupRef.current && meshRef.current) {
+        groupRef.current.position.set(0, 0, 0);
+        groupRef.current.rotation.set(0, 0, 0);
+        meshRef.current.position.set(0, 0, 0);
       }
     }, [isLocked]);
 
@@ -119,32 +102,19 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
       saveSnapshot,
     });
 
-    const { handLandmarkerRef, faceLandmarkerRef, mpReadyRef } = useMediaPipe({
+    const { handLandmarkerRef, mpReadyRef } = useMediaPipe({
       videoRef,
       onStatusChange: onMpStatusChange,
     });
 
-    useTrackingFrame({
+    useHandTracking({
       videoRef,
       size,
       planeW,
       planeH,
-      offscreenCanvas,
       handLandmarkerRef,
-      faceLandmarkerRef,
       mpReadyRef,
-      isLockedRef,
-      lockStateRef,
-      dotMeshRefs,
-      pinchMeshRef,
-      groupRef,
-      meshRef,
-      texture,
-      textureDirty,
-      drawDot,
-      drawSegment,
-      saveSnapshot,
-      onPinchDebug,
+      skeletonRef,
     });
 
     useDevOverlay({ meshRef, planeW, planeH, isLocked });
@@ -175,25 +145,8 @@ const DrawingPlane = forwardRef<DrawingCanvasHandle, DrawingPlaneProps>(
           </mesh>
         </group>
 
-        {/* Landmark dots — fuera del grupo rotante, siempre en world space */}
-        {([0, 1, 2, 3] as const).map((i) => (
-          <mesh key={i} ref={dotMeshRefs[i]} visible={false} renderOrder={10}>
-            <circleGeometry args={[1, 16]} />
-            <meshBasicMaterial color="#ff4444" depthTest={false} depthWrite={false} />
-          </mesh>
-        ))}
-
-        {/* Pinch indicator */}
-        <mesh ref={pinchMeshRef} visible={false} renderOrder={10}>
-          <circleGeometry args={[1, 32]} />
-          <meshBasicMaterial
-            color="#00ff80"
-            transparent
-            opacity={0.4}
-            depthTest={false}
-            depthWrite={false}
-          />
-        </mesh>
+        {/* Esqueleto de manos — fuera del grupo rotante, siempre en world space */}
+        <HandSkeleton ref={skeletonRef} />
       </>
     );
   },

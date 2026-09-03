@@ -76,9 +76,14 @@ interface ThereminAudio {
 
 type CaraModelProps = JSX.IntrinsicElements["group"] & {
   audioEnabled?: boolean;
+  muted?: boolean;
 };
 
-export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
+export function CaraModel({
+  audioEnabled = false,
+  muted = false,
+  ...props
+}: CaraModelProps) {
   const { nodes } = useGLTF(
     "/models/home/FaceModel2.glb",
   ) as unknown as GLTFResult;
@@ -352,7 +357,7 @@ export function CaraModel({ audioEnabled = false, ...props }: CaraModelProps) {
       // Smoothing factor – frame-rate independent, same pattern as hoverRef
       const smooth = 1 - Math.exp(-8 * delta);
 
-      if (isActive) {
+      if (isActive && !muted) {
         // Logarithmic pitch: bottom (-1) → 120 Hz, top (1) → 1400 Hz
         const minFreq = 120;
         const maxFreq = 1400;

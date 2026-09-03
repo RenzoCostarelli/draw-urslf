@@ -4,9 +4,13 @@ import { CaraModel } from "./CaraModel";
 
 interface HomeCanvasProps {
   audioEnabled?: boolean;
+  muted?: boolean;
 }
 
-export default function HomeCanvas({ audioEnabled = false }: HomeCanvasProps) {
+export default function HomeCanvas({
+  audioEnabled = false,
+  muted = false,
+}: HomeCanvasProps) {
   return (
     <Canvas
       camera={{
@@ -23,6 +27,7 @@ export default function HomeCanvas({ audioEnabled = false }: HomeCanvasProps) {
         scale={7}
         position={[0, -1.5, 0]}
         audioEnabled={audioEnabled}
+        muted={muted}
       />
       <EffectComposer multisampling={2}>
         <Bloom
