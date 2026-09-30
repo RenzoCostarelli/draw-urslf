@@ -143,10 +143,7 @@ function ParticleCloud({
       positions[i * 3 + 2] = v.z;
     }
 
-    geometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(positions, 3),
-    );
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   }, [count, radius]);
 
   const uniforms = useMemo(
@@ -281,9 +278,9 @@ function ArButton({ store }: { store: XRStore }) {
   return (
     <button
       onClick={() => store.enterAR()}
-      className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-neutral-900"
+      className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-neutral-900"
     >
-      Entrar en AR
+      Ver en AR
     </button>
   );
 }
