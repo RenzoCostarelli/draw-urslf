@@ -1,9 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import RootLayout from './layouts/RootLayout'
-import LabLayout from './layouts/LabLayout'
-import Home from './pages/Home'
-import Lab from './pages/lab/index'
-import DrawUrslf from './pages/lab/draw-urslf/index'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import RootLayout from "./layouts/RootLayout";
+import LabLayout from "./layouts/LabLayout";
+import Home from "./pages/Home";
+import Lab from "./pages/lab/index";
+import DrawUrslf from "./pages/lab/draw-urslf/index";
+import Webxr from "./pages/lab/webxr-dots/index";
 
 export default function App() {
   return (
@@ -14,9 +15,10 @@ export default function App() {
           <Route element={<LabLayout />}>
             <Route path="/lab" element={<Lab />} />
             <Route path="/lab/draw-urslf" element={<DrawUrslf />} />
+            <Route path="/lab/webxr-dots" element={<Webxr />} />
           </Route>
         </Route>
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
