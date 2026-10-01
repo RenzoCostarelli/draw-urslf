@@ -294,8 +294,14 @@ function useImmersiveArSupported() {
 
 type PointerInfo = { x: number; y: number; point: THREE.Vector3 };
 
-function FakeARPlacement() {
-  const videoRef = useWebcam("environment");
+function FakeARPlacement({
+  onCameraError,
+}: {
+  onCameraError?: (message: string) => void;
+}) {
+  const videoRef = useWebcam("environment", (error) => {
+    onCameraError?.(error instanceof Error ? error.message : String(error));
+  });
   const groupRef = useRef<THREE.Group>(null);
   const [placed, setPlaced] = useState(false);
 
@@ -408,6 +414,7 @@ function FakeARPlacement() {
 export default function DrawUrslf() {
   const arSupported = useImmersiveArSupported();
   const [fakeArActive, setFakeArActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   return (
     <div className="relative w-full h-full bg-neutral-900 flex-1">
@@ -432,7 +439,7 @@ export default function DrawUrslf() {
           <XR store={xrStore}>
             <IfInSessionMode deny="immersive-ar">
               {fakeArActive ? (
-                <FakeARPlacement />
+                <FakeARPlacement onCameraError={setCameraError} />
               ) : (
                 <ParticleCloud count={100000} radius={3} />
               )}
@@ -447,11 +454,19 @@ export default function DrawUrslf() {
           <ArButton store={xrStore} />
         ) : (
           <button
-            onClick={() => setFakeArActive((active) => !active)}
+            onClick={() => {
+              setCameraError(null);
+              setFakeArActive((active) => !active);
+            }}
             className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-neutral-900"
           >
             {fakeArActive ? "Salir de AR" : "Ver en AR"}
           </button>
+        )}
+        {fakeArActive && cameraError && (
+          <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-red-600/90 px-4 py-2 text-center text-sm text-white">
+            No se pudo acceder a la cámara: {cameraError}
+          </div>
         )}
       </div>
     </div>
