@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import type { RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -11,6 +11,11 @@ import {
   useXRHitTest,
   type XRStore,
 } from "@react-three/xr";
+import { useWebcam } from "../../../hooks/useWebcam";
+import WebcamPlane from "../../../components/WebcamPlane";
+
+const PINCH_SCALE_MIN = 0.2;
+const PINCH_SCALE_MAX = 5;
 
 const NOISE_SCALE = 0.5;
 const NOISE_SPEED = 0.15;
@@ -198,7 +203,7 @@ function Reticle({
       groupRef.current.position.setFromMatrixPosition(matrixRef.current);
       groupRef.current.quaternion.setFromRotationMatrix(matrixRef.current);
     }
-  }, "viewer");
+  }, "viewer", ["plane", "point"]);
 
   return (
     <group ref={groupRef} visible={false}>
@@ -264,17 +269,6 @@ function ARPlacement() {
 }
 
 function ArButton({ store }: { store: XRStore }) {
-  const [supported, setSupported] = useState(false);
-
-  useEffect(() => {
-    navigator.xr
-      ?.isSessionSupported("immersive-ar")
-      .then(setSupported)
-      .catch(() => setSupported(false));
-  }, []);
-
-  if (!supported) return null;
-
   return (
     <button
       onClick={() => store.enterAR()}
@@ -285,7 +279,136 @@ function ArButton({ store }: { store: XRStore }) {
   );
 }
 
+function useImmersiveArSupported() {
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    navigator.xr
+      ?.isSessionSupported("immersive-ar")
+      .then(setSupported)
+      .catch(() => setSupported(false));
+  }, []);
+
+  return supported;
+}
+
+type PointerInfo = { x: number; y: number; point: THREE.Vector3 };
+
+function FakeARPlacement() {
+  const videoRef = useWebcam("environment");
+  const groupRef = useRef<THREE.Group>(null);
+  const [placed, setPlaced] = useState(false);
+
+  const pointers = useRef(new Map<number, PointerInfo>());
+  const dragOrigin = useRef<{
+    point: THREE.Vector3;
+    position: THREE.Vector3;
+  } | null>(null);
+  const pinchOrigin = useRef<{ distance: number; scale: number } | null>(
+    null,
+  );
+
+  const resetGestureOrigins = () => {
+    dragOrigin.current = null;
+    pinchOrigin.current = null;
+    const pts = Array.from(pointers.current.values());
+    const group = groupRef.current;
+    if (!group) return;
+    if (pts.length === 1) {
+      dragOrigin.current = {
+        point: pts[0].point.clone(),
+        position: group.position.clone(),
+      };
+    } else if (pts.length === 2) {
+      pinchOrigin.current = {
+        distance: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+        scale: group.scale.x,
+      };
+    }
+  };
+
+  const handlePointerDown = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    pointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      point: event.point.clone(),
+    });
+
+    if (!placed) {
+      groupRef.current?.position.copy(event.point);
+      setPlaced(true);
+      return;
+    }
+
+    resetGestureOrigins();
+  };
+
+  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
+    if (!pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+      point: event.point.clone(),
+    });
+
+    const group = groupRef.current;
+    if (!group) return;
+
+    if (pointers.current.size === 2 && pinchOrigin.current) {
+      const pts = Array.from(pointers.current.values());
+      const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const scale = THREE.MathUtils.clamp(
+        pinchOrigin.current.scale * (distance / pinchOrigin.current.distance),
+        PINCH_SCALE_MIN,
+        PINCH_SCALE_MAX,
+      );
+      group.scale.setScalar(scale);
+      return;
+    }
+
+    if (pointers.current.size === 1 && dragOrigin.current) {
+      const delta = event.point.clone().sub(dragOrigin.current.point);
+      group.position.copy(dragOrigin.current.position).add(delta);
+    }
+  };
+
+  const handlePointerUp = (event: ThreeEvent<PointerEvent>) => {
+    pointers.current.delete(event.pointerId);
+    resetGestureOrigins();
+  };
+
+  return (
+    <>
+      <WebcamPlane videoRef={videoRef} />
+      <mesh
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <planeGeometry args={[100, 100]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {placed && (
+        <group ref={groupRef}>
+          <ParticleCloud
+            count={20000}
+            radius={0.6}
+            noiseScale={1}
+            displacement={0.15}
+            pointSize={8}
+          />
+        </group>
+      )}
+    </>
+  );
+}
+
 export default function DrawUrslf() {
+  const arSupported = useImmersiveArSupported();
+  const [fakeArActive, setFakeArActive] = useState(false);
+
   return (
     <div className="relative w-full h-full bg-neutral-900 flex-1">
       <title>webxr | *.lab /rnz0_</title>
@@ -308,7 +431,11 @@ export default function DrawUrslf() {
         >
           <XR store={xrStore}>
             <IfInSessionMode deny="immersive-ar">
-              <ParticleCloud count={100000} radius={3} />
+              {fakeArActive ? (
+                <FakeARPlacement />
+              ) : (
+                <ParticleCloud count={100000} radius={3} />
+              )}
             </IfInSessionMode>
             <IfInSessionMode allow="immersive-ar">
               <ARPlacement />
@@ -316,7 +443,16 @@ export default function DrawUrslf() {
           </XR>
           {import.meta.env.DEV && <Perf position="top-right" />}
         </Canvas>
-        <ArButton store={xrStore} />
+        {arSupported ? (
+          <ArButton store={xrStore} />
+        ) : (
+          <button
+            onClick={() => setFakeArActive((active) => !active)}
+            className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-neutral-900"
+          >
+            {fakeArActive ? "Salir de AR" : "Ver en AR"}
+          </button>
+        )}
       </div>
     </div>
   );

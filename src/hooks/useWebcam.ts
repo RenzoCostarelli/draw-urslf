@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
  * Creates and manages a shared webcam video element.
  * Returns a ref so both the Three.js scene and hand tracker can use the same stream.
  */
-export function useWebcam() {
+export function useWebcam(facingMode: 'user' | 'environment' = 'user') {
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export function useWebcam() {
     navigator.mediaDevices
       .getUserMedia({
         video: {
-          facingMode: 'user',
+          facingMode,
           width: { ideal: isMobile ? 640 : 1280 },
           height: { ideal: isMobile ? 480 : 720 },
         },
@@ -45,7 +45,7 @@ export function useWebcam() {
       document.body.removeChild(video)
       videoRef.current = null
     }
-  }, [])
+  }, [facingMode])
 
   return videoRef
 }
