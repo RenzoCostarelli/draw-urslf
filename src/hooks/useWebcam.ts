@@ -16,6 +16,14 @@ export function useWebcam(
   })
 
   useEffect(() => {
+    // StrictMode mounts this effect twice in dev (mount -> cleanup -> mount).
+    // The cleanup can run before getUserMedia resolves, so `cancelled` lets the
+    // async callback know to stop that orphaned stream instead of attaching it -
+    // iOS WebKit blacks out the video element when two camera streams end up
+    // live at once.
+    let cancelled = false
+    let activeStream: MediaStream | null = null
+
     const video = document.createElement('video')
     video.autoplay = true
     video.muted = true
@@ -45,19 +53,23 @@ export function useWebcam(
         },
       })
       .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        activeStream = stream
         video.srcObject = stream
         return video.play()
       })
       .catch((err) => {
+        if (cancelled) return
         console.error('Webcam error:', err)
         onErrorRef.current?.(err)
       })
 
     return () => {
-      if (video.srcObject) {
-        const stream = video.srcObject as MediaStream
-        stream.getTracks().forEach((t) => t.stop())
-      }
+      cancelled = true
+      activeStream?.getTracks().forEach((t) => t.stop())
       document.body.removeChild(video)
       videoRef.current = null
     }
