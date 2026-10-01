@@ -21,9 +21,14 @@ export function useWebcam(
     video.muted = true
     video.playsInline = true
     Object.assign(video.style, {
-      position: 'absolute',
-      width: '1px',
-      height: '1px',
+      // iOS WebKit throttles decoding on near-zero-size video elements, leaving
+      // the texture black even once the stream is playing. Keep it full-size
+      // but pushed off-screen instead of shrinking it.
+      position: 'fixed',
+      top: '0',
+      left: '-99999px',
+      width: '640px',
+      height: '480px',
       opacity: '0',
       pointerEvents: 'none',
     })
@@ -41,7 +46,7 @@ export function useWebcam(
       })
       .then((stream) => {
         video.srcObject = stream
-        video.play()
+        return video.play()
       })
       .catch((err) => {
         console.error('Webcam error:', err)
